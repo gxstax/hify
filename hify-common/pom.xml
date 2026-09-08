@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.hify</groupId>
+    <artifactId>hify</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>hify-common</artifactId>
+  <name>hify-common</name>
+  <description>Shared module: constants, ErrorCode/exceptions, Result/PageResult DTO base classes, utilities</description>
+
+  <dependencies>
+    <!-- Generate getters/setters for POJOs; version managed by Spring Boot BOM, not packaged -->
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <scope>provided</scope>
+    </dependency>
+    <!-- @RestControllerAdvice / @ExceptionHandler (GlobalExceptionHandler); runtime MVC comes from hify-app -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-web</artifactId>
+    </dependency>
+    <!-- FieldError / BindingResult used by the validation exception handler -->
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-context</artifactId>
+    </dependency>
+    <!-- MyBatis-Plus: BaseEntity annotations, pagination interceptor, MetaObjectHandler -->
+    <dependency>
+      <groupId>com.baomidou</groupId>
+      <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+    </dependency>
+    <!-- PaginationInnerInterceptor lives here since MP 3.5.9 (JSqlParser-based) -->
+    <dependency>
+      <groupId>com.baomidou</groupId>
+      <artifactId>mybatis-plus-jsqlparser</artifactId>
+    </dependency>
+    <!-- RedisTemplate / connection factory -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-redis</artifactId>
+    </dependency>
+    <!-- Spring Cache abstraction (@Cacheable), backed by Redis via RedisCacheManager -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-cache</artifactId>
+    </dependency>
+    <!-- Bean validation for @Valid request DTOs (all modules inherit it via common) -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
+    <!-- Jackson: GenericJackson2JsonRedisSerializer needs jackson-databind,
+         which spring-data-redis declares as optional -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-json</artifactId>
+    </dependency>
+    <!-- Logging API only; the logging implementation is provided by the app module -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+    </dependency>
+  </dependencies>
+</project>

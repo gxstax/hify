@@ -1,0 +1,7 @@
+/* Minimal global styles; look and feel comes from Element Plus */
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}

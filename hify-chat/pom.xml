@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.hify</groupId>
+    <artifactId>hify</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>hify-chat</artifactId>
+  <name>hify-chat</name>
+  <description>Chat engine: streaming SSE responses, multi-turn context, session management</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.hify</groupId>
+      <artifactId>hify-common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <!-- Read agent configs when chatting -->
+    <dependency>
+      <groupId>com.hify</groupId>
+      <artifactId>hify-agent</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <!-- Invoke models / LLM services -->
+    <dependency>
+      <groupId>com.hify</groupId>
+      <artifactId>hify-provider</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <!-- Chat may trigger a workflow -->
+    <dependency>
+      <groupId>com.hify</groupId>
+      <artifactId>hify-workflow</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <!-- Chat may run RAG retrieval -->
+    <dependency>
+      <groupId>com.hify</groupId>
+      <artifactId>hify-knowledge</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <!-- REST controllers + SseEmitter -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <!-- Chat context cache, key = session:{sessionId}, TTL 2h -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-redis</artifactId>
+    </dependency>
+    <!-- chat_session / chat_message tables -->
+    <dependency>
+      <groupId>com.baomidou</groupId>
+      <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+    </dependency>
+  </dependencies>
+</project>

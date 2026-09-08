@@ -1,0 +1,13 @@
+# Build output
+target/
+out/
+
+# Logs
+*.log
+
+# macOS
+.DS_Store
+
+# hify-web (future)
+node_modules/
+dist/

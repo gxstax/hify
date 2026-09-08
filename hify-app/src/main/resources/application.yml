@@ -1,0 +1,37 @@
+# Hify local/development defaults. Connection credentials are read from
+# environment variables (MYSQL_HOST etc.) and fall back to localhost defaults;
+# override them via env vars or by editing this file for local dev.
+server:
+  port: 8080
+
+spring:
+  application:
+    name: hify
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:hify}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:gao5219999}
+    hikari:
+      maximum-pool-size: 10
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2s
+      # connect-timeout / lettuce pool tuning goes here when needed
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    banner: false
+    db-config:
+      # Primary keys are bigint auto-increment (BaseEntity carries @TableId too)
+      id-type: auto
+      # Logical delete convention: deleted tinyint, 1 = deleted, 0 = normal.
+      # Fields named `deleted` are excluded from queries automatically.
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
