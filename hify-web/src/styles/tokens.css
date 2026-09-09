@@ -1,0 +1,240 @@
+/* ============================================================================
+   Hify design tokens — design system
+   Style direction: light surfaces + tech accents. Light backgrounds for
+   dense admin tables, dark sidebar for contrast, indigo(blue-purple) as the
+   primary brand color, cyan/mint for data & status accents. Reference feel:
+   Linear / Supabase — clean, calm, a little designed, never flashy.
+
+   Usage:
+     - import once in src/main.ts (before component styles that use the vars)
+     - reference tokens as var(--hify-*)
+     - Element Plus variables below are remapped so el-* components pick the
+       system up automatically (no per-component theming needed)
+   ========================================================================== */
+
+:root {
+  /* ------------------------------------------------------------------------
+   * Primary — indigo / blue-purple brand color
+   * ---------------------------------------------------------------------- */
+  --hify-primary-50:  #f0f1fb;
+  --hify-primary-100: #e2e4f7;
+  --hify-primary-200: #c9cdf0;
+  --hify-primary-300: #a9aee5;
+  --hify-primary-400: #858cd8;
+  --hify-primary-500: #5e6ad2;   /* main brand (Linear-ish indigo) */
+  --hify-primary-600: #4e5ab9;
+  --hify-primary-700: #3f4890;
+  --hify-primary-800: #333a6e;
+  --hify-primary-900: #272c52;
+  --hify-primary: var(--hify-primary-500);
+
+  /* ------------------------------------------------------------------------
+   * Accent — cyan / mint for data viz, links, status indication
+   * ---------------------------------------------------------------------- */
+  --hify-accent-50:  #ecfeff;
+  --hify-accent-100: #cffafe;
+  --hify-accent-200: #a5f3fc;
+  --hify-accent-300: #67e8f9;
+  --hify-accent-400: #22d3ee;
+  --hify-accent-500: #06b6d4;
+  --hify-accent-600: #0891b2;
+  --hify-accent-700: #0e7490;
+  --hify-accent: var(--hify-accent-500);
+
+  /* Semantic status colors (mint-leaning success keeps "OK" visually cool) */
+  --hify-success: #10b981;
+  --hify-success-bg: #e7f9f1;
+  --hify-warning: #f59e0b;
+  --hify-warning-bg: #fdf3e0;
+  --hify-danger: #e4574d;
+  --hify-danger-bg: #fdeceb;
+  --hify-info: #64748b;
+  --hify-info-bg: #eef1f5;
+
+  /* ------------------------------------------------------------------------
+   * Backgrounds — light surfaces (page < card < raised)
+   * ---------------------------------------------------------------------- */
+  --color-bg-secondary: #f6f7fa;     /* app/page background: light cool grey */
+  --hify-bg-container: #ffffff;      /* cards / tables / forms */
+  --hify-bg-subtle: #eef0f6;         /* hover fills, secondary wells */
+  --hify-bg-active: #e5e8f4;         /* selected row / item fill */
+  --hify-bg-input: #fbfbfd;          /* input/select resting fill */
+
+  /* ------------------------------------------------------------------------
+   * Text
+   * ---------------------------------------------------------------------- */
+  --hify-text-primary: #1c1e26;
+  --hify-text-secondary: #565b6b;
+  --hify-text-tertiary: #8b90a1;
+  --hify-text-disabled: #c2c5d1;
+  --hify-text-on-primary: #ffffff;
+
+  /* ------------------------------------------------------------------------
+   * Borders & dividers
+   * ---------------------------------------------------------------------- */
+  --hify-border: #e4e6ef;            /* default divider */
+  --hify-border-strong: #d0d3e0;     /* table header, input focus rests */
+  --hify-border-focus: var(--hify-primary-400);
+
+  /* ------------------------------------------------------------------------
+   * Radius — 4px-friendly small controls, larger for cards & dialogs
+   * ---------------------------------------------------------------------- */
+  --hify-radius-sm: 6px;             /* buttons, inputs, tags */
+  --hify-radius-md: 8px;             /* cards, table containers, dropdowns */
+  --hify-radius-lg: 12px;            /* dialogs, page-level panels */
+  --hify-radius-full: 999px;
+
+  /* ------------------------------------------------------------------------
+   * Shadows — calm and light (Linear-like), color tinted slightly indigo
+   * ---------------------------------------------------------------------- */
+  --hify-shadow-sm: 0 1px 2px rgba(28, 30, 46, 0.05);
+  --hify-shadow-md: 0 2px 8px rgba(28, 30, 46, 0.06), 0 1px 2px rgba(28, 30, 46, 0.04);
+  --hify-shadow-lg: 0 8px 24px rgba(28, 30, 46, 0.1), 0 2px 6px rgba(28, 30, 46, 0.05);
+  --hify-shadow-popover: 0 12px 40px rgba(23, 25, 38, 0.16);
+
+  /* ------------------------------------------------------------------------
+   * Spacing rhythm — page margin 24 / card padding 20 / element gap 16
+   * ---------------------------------------------------------------------- */
+  --hify-space-page: 24px;
+  --hify-space-card: 20px;
+  --hify-space-element: 16px;
+
+  /* ------------------------------------------------------------------------
+   * Brand gradient (primary CTA buttons, avatar fills, logo accents)
+   * ---------------------------------------------------------------------- */
+  --hify-gradient-brand: linear-gradient(135deg, var(--hify-primary-400), var(--hify-primary-600));
+  --hify-gradient-brand-hover: linear-gradient(135deg, var(--hify-primary-300), var(--hify-primary-500));
+
+  /* ------------------------------------------------------------------------
+   * Motion — fast, quiet transitions with a slight overshoot-free ease
+   * ---------------------------------------------------------------------- */
+  --hify-duration-fast: 120ms;
+  --hify-duration-base: 200ms;
+  --hify-duration-slow: 300ms;
+  --hify-ease-out: cubic-bezier(0.16, 1, 0.3, 1);   /* exit/entrance */
+  --hify-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1); /* in-place tweens */
+
+  /* ------------------------------------------------------------------------
+   * Dark sidebar (contrast layer against the light canvas)
+   * ---------------------------------------------------------------------- */
+  --color-bg-dark: #15161d;               /* dark layer (sidebar): near-black,
+                                             not pure black, indigo hint */
+  --hify-sidebar-bg-hover: rgba(255, 255, 255, 0.06);
+  --hify-sidebar-bg-active: rgba(255, 255, 255, 0.1);
+  --hify-sidebar-text: #9aa0b3;
+  --hify-sidebar-text-hover: #e9ebf2;
+  --hify-sidebar-text-active: #ffffff;
+  --hify-sidebar-accent: var(--hify-primary-400);  /* active indicator bar */
+  --hify-sidebar-border: rgba(255, 255, 255, 0.08);
+
+  /* ========================================================================
+   * Element Plus remap — components inherit the system automatically
+   * ====================================================================== */
+
+  /* Colors */
+  --el-color-primary: var(--hify-primary-500);
+  --el-color-primary-light-3: color-mix(in srgb, var(--hify-primary-500) 70%, #fff);
+  --el-color-primary-light-5: color-mix(in srgb, var(--hify-primary-500) 50%, #fff);
+  --el-color-primary-light-7: color-mix(in srgb, var(--hify-primary-500) 30%, #fff);
+  --el-color-primary-light-8: color-mix(in srgb, var(--hify-primary-500) 20%, #fff);
+  --el-color-primary-light-9: color-mix(in srgb, var(--hify-primary-500) 10%, #fff);
+  --el-color-primary-dark-2: color-mix(in srgb, var(--hify-primary-500) 80%, #000);
+
+  --el-color-success: var(--hify-success);
+  --el-color-warning: var(--hify-warning);
+  --el-color-danger: var(--hify-danger);
+  --el-color-error: var(--hify-danger);
+  --el-color-info: var(--hify-info);
+
+  /* Derived palettes for every semantic color — tags/buttons/alerts read
+     light-N (backgrounds) and dark-2 (hover) from these; without them the
+     components fall back to Element Plus' default green/grey/red mixes. */
+  --el-color-success-light-3: color-mix(in srgb, var(--hify-success) 70%, #fff);
+  --el-color-success-light-5: color-mix(in srgb, var(--hify-success) 50%, #fff);
+  --el-color-success-light-7: color-mix(in srgb, var(--hify-success) 30%, #fff);
+  --el-color-success-light-8: color-mix(in srgb, var(--hify-success) 20%, #fff);
+  --el-color-success-light-9: color-mix(in srgb, var(--hify-success) 10%, #fff);
+  --el-color-success-dark-2: color-mix(in srgb, var(--hify-success) 80%, #000);
+
+  --el-color-warning-light-3: color-mix(in srgb, var(--hify-warning) 70%, #fff);
+  --el-color-warning-light-5: color-mix(in srgb, var(--hify-warning) 50%, #fff);
+  --el-color-warning-light-7: color-mix(in srgb, var(--hify-warning) 30%, #fff);
+  --el-color-warning-light-8: color-mix(in srgb, var(--hify-warning) 20%, #fff);
+  --el-color-warning-light-9: color-mix(in srgb, var(--hify-warning) 10%, #fff);
+  --el-color-warning-dark-2: color-mix(in srgb, var(--hify-warning) 80%, #000);
+
+  --el-color-danger-light-3: color-mix(in srgb, var(--hify-danger) 70%, #fff);
+  --el-color-danger-light-5: color-mix(in srgb, var(--hify-danger) 50%, #fff);
+  --el-color-danger-light-7: color-mix(in srgb, var(--hify-danger) 30%, #fff);
+  --el-color-danger-light-8: color-mix(in srgb, var(--hify-danger) 20%, #fff);
+  --el-color-danger-light-9: color-mix(in srgb, var(--hify-danger) 10%, #fff);
+  --el-color-danger-dark-2: color-mix(in srgb, var(--hify-danger) 80%, #000);
+
+  --el-color-info-light-3: color-mix(in srgb, var(--hify-info) 70%, #fff);
+  --el-color-info-light-5: color-mix(in srgb, var(--hify-info) 50%, #fff);
+  --el-color-info-light-7: color-mix(in srgb, var(--hify-info) 30%, #fff);
+  --el-color-info-light-8: color-mix(in srgb, var(--hify-info) 20%, #fff);
+  --el-color-info-light-9: color-mix(in srgb, var(--hify-info) 10%, #fff);
+  --el-color-info-dark-2: color-mix(in srgb, var(--hify-info) 80%, #000);
+
+  /* Text */
+  --el-text-color-primary: var(--hify-text-primary);
+  --el-text-color-regular: var(--hify-text-secondary);
+  --el-text-color-secondary: var(--hify-text-tertiary);
+  --el-text-color-placeholder: var(--hify-text-tertiary);
+  --el-text-color-disabled: var(--hify-text-disabled);
+
+  /* Borders */
+  --el-border-color: var(--hify-border);
+  --el-border-color-light: var(--hify-border);
+  --el-border-color-lighter: var(--hify-border);
+  --el-border-color-extra-light: var(--hify-bg-subtle);
+  --el-border-color-hover: var(--hify-border-strong);
+  --el-border-color-darker: var(--hify-border-strong);
+
+  /* Fills (hover rows, disabled wells, input bg) */
+  --el-fill-color: var(--hify-bg-subtle);
+  --el-fill-color-light: var(--color-bg-secondary);
+  --el-fill-color-lighter: #fafbfd;
+  --el-fill-color-extra-light: var(--hify-bg-input);
+  --el-fill-color-dark: var(--hify-bg-subtle);
+  --el-fill-color-darker: var(--hify-bg-active);
+
+  /* Background */
+  --el-bg-color: var(--hify-bg-container);
+  --el-bg-color-page: var(--color-bg-secondary);
+  --el-bg-color-overlay: #ffffff;
+
+  /* Radius */
+  --el-border-radius-base: var(--hify-radius-sm);
+  --el-border-radius-small: 4px;
+  --el-border-radius-round: var(--hify-radius-full);
+
+  /* Shadows */
+  --el-box-shadow: var(--hify-shadow-md);
+  --el-box-shadow-light: var(--hify-shadow-md);
+  --el-box-shadow-lighter: var(--hify-shadow-sm);
+  --el-box-shadow-dark: var(--hify-shadow-popover);
+
+  /* Tables: light header matching the page grey; row hover with a faint
+     indigo tint (instead of Element's heavier grey) */
+  --el-table-header-bg-color: var(--color-bg-secondary);
+  --el-table-header-text-color: var(--hify-text-secondary);
+  --el-table-row-hover-bg-color: color-mix(in srgb, var(--hify-primary-500) 6%, #fff);
+
+  /* Motion — slightly snappier than Element defaults */
+  --el-transition-duration: 0.2s;
+  --el-transition-duration-fast: var(--hify-duration-fast);
+  --el-transition-function-ease-in-out-bezier: var(--hify-ease-in-out);
+  --el-transition-function-ease-in-bezier: var(--hify-ease-out);
+  --el-transition-function-ease-out-bezier: var(--hify-ease-out);
+
+  /* Menu — currently the only el-menu is the dark app sidebar, so the
+     Element menu palette is pinned to the sidebar tokens here. If a light
+     menu ever appears, scope an override on that component instead. */
+  --el-menu-bg-color: var(--color-bg-dark);
+  --el-menu-text-color: var(--hify-sidebar-text);
+  --el-menu-hover-bg-color: var(--hify-sidebar-bg-hover);
+  --el-menu-active-color: var(--hify-sidebar-text-active);
+  --el-menu-item-height: 46px;
+}

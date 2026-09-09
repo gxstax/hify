@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Unified Hify logging (lives in hify-common so every module shares it).
+  Two profiles:
+    - default/dev (no profile or not `prod`): colored console output
+    - `prod`: JSON lines to a rolling file (one file per day, 30 days kept)
+
+  Trace ids come from the MDC key `traceId`, filled per request by
+  RequestLogInterceptor; logstash appenders include MDC automatically.
+  Log directory overridable via LOG_PATH (defaults to ./logs).
+-->
+<configuration>
+
+  <property name="LOG_PATH" value="${LOG_PATH:-logs}"/>
+
+  <!-- %clr coloring support (Spring Boot provides the converter) -->
+  <conversionRule conversionWord="clr"
+                  class="org.springframework.boot.logging.logback.ColorConverter"/>
+
+  <!-- Development: colored console -->
+  <springProfile name="!prod">
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+      <encoder>
+        <pattern>%d{HH:mm:ss} %clr([%thread]){magenta} %clr([%X{traceId:-}]){cyan} %clr(%-5level) %clr(%logger{20}){cyan} - %msg%n</pattern>
+      </encoder>
+    </appender>
+
+    <root level="INFO">
+      <appender-ref ref="CONSOLE"/>
+    </root>
+  </springProfile>
+
+  <!-- Production: JSON to file, daily rollover, 30 days history -->
+  <springProfile name="prod">
+    <appender name="JSON_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+      <file>${LOG_PATH}/hify.log</file>
+      <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+        <fileNamePattern>${LOG_PATH}/hify.%d{yyyy-MM-dd}.log</fileNamePattern>
+        <maxHistory>30</maxHistory>
+      </rollingPolicy>
+      <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+        <includeMdc>true</includeMdc>
+      </encoder>
+    </appender>
+
+    <root level="INFO">
+      <appender-ref ref="JSON_FILE"/>
+    </root>
+  </springProfile>
+
+</configuration>

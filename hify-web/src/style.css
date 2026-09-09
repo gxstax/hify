@@ -1,7 +1,50 @@
-/* Minimal global styles; look and feel comes from Element Plus */
+/* ============================================================================
+   Global styles: page layout primitives + button conventions.
+   Design tokens live in src/styles/tokens.css (imported before this file).
+   ========================================================================== */
+
+/* Shell: full-height app, no default body margin */
 html,
 body,
 #app {
   height: 100%;
   margin: 0;
+}
+
+/* --- page layout: 24px page padding, 8px stack gap -------------------------
+   The stack gap is tighter than the general element spacing: the page title
+   block and the first card read ~16px apart once the description's line-box
+   overhang is counted. */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--hify-space-page);
+}
+
+/* White content card lifted off the grey canvas by a light shadow */
+.page-card {
+  padding: var(--hify-space-card);
+  background-color: var(--hify-bg-container);
+  border-radius: var(--hify-radius-md);
+  box-shadow: var(--hify-shadow-sm);
+}
+
+/* --- button conventions ------------------------------------------------
+ * Primary action: brand gradient (indigo) CTA
+ *   <el-button type="primary" class="btn-brand-gradient">
+ * Secondary action: plain el-button (default) — white fill + border
+ * Destructive action: <el-button type="danger">
+ * ------------------------------------------------------------------------ */
+.el-button--primary.btn-brand-gradient {
+  border: none;
+  background-image: var(--hify-gradient-brand);
+}
+
+.el-button--primary.btn-brand-gradient:hover {
+  background-image: var(--hify-gradient-brand-hover);
+}
+
+.el-button--primary.btn-brand-gradient:active {
+  filter: brightness(0.96);
 }

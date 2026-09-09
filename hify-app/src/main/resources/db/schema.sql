@@ -15,45 +15,73 @@
 -- DROP it first or it will silently keep the old definition.
 
 -- ---------------------------------------------------------------------------
--- provider: model providers (OpenAI / Claude / Gemini / Ollama)
+-- provider: a model-provider access instance (one protocol + one credential set)
+-- auth_config structure depends on `type`:
+--   OPENAI / OPENAI_COMPATIBLE -> { "apiKey": "sk-..." }   (Bearer)
+--   ANTHROPIC                 -> { "apiKey": "sk-ant-..." } (x-api-key header)
+--   OLLAMA                    -> null (no auth)
+-- Future types may carry { clientId, clientSecret, tokenUrl, ... } etc.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS provider (
-  id           BIGINT      NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
-  name         VARCHAR(64) NOT NULL COMMENT 'Provider key, e.g. openai / claude / gemini / ollama',
-  display_name VARCHAR(64) NOT NULL COMMENT 'Human readable name shown in the console',
-  enabled      TINYINT     NOT NULL DEFAULT 1 COMMENT '1 = enabled, 0 = disabled',
-  created_at   DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
-  updated_at   DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
-  deleted      TINYINT     NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
+  id         BIGINT        NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+  name       VARCHAR(100)  NOT NULL COMMENT '供应商名称，唯一',
+  type       VARCHAR(30)   NOT NULL COMMENT 'OPENAI / ANTHROPIC / OLLAMA / OPENAI_COMPATIBLE',
+  base_url   VARCHAR(500)  NOT NULL COMMENT 'API 基础地址',
+  auth_config JSON         NULL COMMENT '鉴权配置，结构按 type 不同',
+  description VARCHAR(255) NULL COMMENT '备注',
+  enabled    TINYINT       NOT NULL DEFAULT 1 COMMENT '0=禁用 1=启用',
+  created_at DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
+  updated_at DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
+  deleted    TINYINT       NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
   PRIMARY KEY (id),
   UNIQUE KEY uk_provider_name (name)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci
-  COMMENT = 'Model providers';
+  COMMENT = '模型提供商';
 
 -- ---------------------------------------------------------------------------
--- model_config: a concrete model access config, bound to one provider (N:1)
+-- model_config: models exposed by one provider access instance (N:1)
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS model_config (
-  id           BIGINT        NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
-  provider_id  BIGINT        NOT NULL COMMENT 'Owning provider, provider.id (app-layer FK)',
-  name         VARCHAR(128)  NOT NULL COMMENT 'Model id as the provider API expects, e.g. gpt-4o',
-  display_name VARCHAR(128)  NULL COMMENT 'Optional label for the console',
-  type         VARCHAR(16)   NOT NULL DEFAULT 'chat' COMMENT 'Model kind: chat | embedding',
-  api_key      VARCHAR(512)  NULL COMMENT 'API key for this config; NULL when not needed (e.g. local Ollama)',
-  base_url     VARCHAR(512)  NULL COMMENT 'API base URL override; NULL = provider default endpoint',
-  enabled      TINYINT       NOT NULL DEFAULT 1 COMMENT '1 = enabled, 0 = disabled',
-  created_at   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
-  updated_at   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
-  deleted      TINYINT       NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
+  id           BIGINT       NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+  provider_id  BIGINT       NOT NULL COMMENT '所属供应商 ID，provider.id（应用层外键）',
+  name         VARCHAR(100) NOT NULL COMMENT '展示名，如 GPT-4o',
+  model_id     VARCHAR(100) NOT NULL COMMENT '调用时传给 API 的值',
+  context_size INT          NULL COMMENT '上下文窗口大小（token 数）',
+  extra_params JSON         NULL COMMENT '模型级别扩展参数',
+  enabled      TINYINT      NOT NULL DEFAULT 1 COMMENT '0=禁用 1=启用',
+  created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
+  updated_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
+  deleted      TINYINT      NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
   PRIMARY KEY (id),
-  UNIQUE KEY uk_model_config_provider_name_type (provider_id, name, type),
   KEY idx_model_config_provider_id (provider_id)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci
-  COMMENT = 'Model access configs';
+  COMMENT = '模型配置';
+
+-- ---------------------------------------------------------------------------
+-- provider_health: 1:1 probe results per provider. High write frequency, kept
+-- out of the provider row so it never invalidates the provider cache.
+-- No logical delete: one row per provider, upsert semantics.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS provider_health (
+  id             BIGINT       NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+  provider_id    BIGINT       NOT NULL COMMENT '供应商 ID，唯一',
+  status         VARCHAR(20)  NOT NULL DEFAULT 'UNKNOWN' COMMENT 'UP / DOWN / DEGRADED / UNKNOWN',
+  last_check_at  DATETIME     NULL COMMENT '最后探测时间',
+  last_success_at DATETIME    NULL COMMENT '最后成功时间',
+  fail_count     INT          NOT NULL DEFAULT 0 COMMENT '连续失败次数',
+  latency_ms     INT          NULL COMMENT '最近一次延迟 ms',
+  error_message  VARCHAR(500) NULL COMMENT '最近失败原因',
+  updated_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
+  PRIMARY KEY (id),
+  UNIQUE INDEX idx_provider_health_provider_id (provider_id)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = '供应商健康状态';
 
 -- ---------------------------------------------------------------------------
 -- agent: agent definition (model binding + system prompt; MCP tools via agent_tool)

@@ -35,3 +35,15 @@ mybatis-plus:
       logic-delete-field: deleted
       logic-delete-value: 1
       logic-not-delete-value: 0
+
+# Resilience4j circuit breaker defaults per CLAUDE.md. One breaker instance
+# per provider is created at runtime via CircuitBreakerRegistry; the `default`
+# config here applies to all of them (see CircuitBreakerService).
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3

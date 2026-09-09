@@ -20,6 +20,12 @@
       <artifactId>hify-common</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <!-- Lombok for entities/DTOs (provided scope is not transitive) -->
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <scope>provided</scope>
+    </dependency>
     <!-- REST controllers -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

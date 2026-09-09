@@ -1,6 +1,6 @@
 import axios, { type AxiosRequestConfig } from 'axios'
-import { ElMessage } from 'element-plus'
 import type { Result } from '@/types/api'
+import { notifyError } from './notify'
 
 /**
  * Shared axios instance for all API calls.
@@ -23,11 +23,11 @@ request.interceptors.response.use(
       // Auto-unwrap: resolve with the payload only
       return result.data
     }
-    ElMessage.error(result.message || '请求失败')
+    notifyError(result.message || '请求失败')
     return Promise.reject(new Error(result.message))
   },
   (error) => {
-    ElMessage.error(error?.response?.data?.message || error?.message || '网络错误')
+    notifyError(error?.response?.data?.message || error?.message || '网络错误')
     return Promise.reject(error)
   },
 )

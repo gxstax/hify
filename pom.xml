@@ -44,6 +44,8 @@
     <mybatis-plus.version>3.5.17</mybatis-plus.version>
     <resilience4j.version>2.4.0</resilience4j.version>
     <pgvector.version>0.1.6</pgvector.version>
+    <okhttp.version>5.5.0</okhttp.version>
+    <logstash-logback.version>9.0</logstash-logback.version>
   </properties>
 
   <dependencyManagement>
@@ -69,6 +71,20 @@
         <groupId>com.pgvector</groupId>
         <artifactId>pgvector</artifactId>
         <version>${pgvector.version}</version>
+      </dependency>
+      <!-- HTTP client for LLM streaming calls.
+           OkHttp 5.x publishes a KMP metadata-only `okhttp` jar; plain Maven
+           consumers must depend on the JVM artifact `okhttp-jvm`. -->
+      <dependency>
+        <groupId>com.squareup.okhttp3</groupId>
+        <artifactId>okhttp-jvm</artifactId>
+        <version>${okhttp.version}</version>
+      </dependency>
+      <!-- JSON log encoder for the production logback appender -->
+      <dependency>
+        <groupId>net.logstash.logback</groupId>
+        <artifactId>logstash-logback-encoder</artifactId>
+        <version>${logstash-logback.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
