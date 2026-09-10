@@ -37,8 +37,9 @@ public class CacheConfig {
         .prefixCacheNameWith("hify:")
         .serializeKeysWith(
             RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
+        // Shared serializer (JavaTimeModule included) — see RedisConfig
         .serializeValuesWith(
-            RedisSerializationContext.SerializationPair.fromSerializer(new GenericJackson2JsonRedisSerializer()));
+            RedisSerializationContext.SerializationPair.fromSerializer(RedisConfig.redisJsonSerializer()));
 
     Map<String, RedisCacheConfiguration> cacheConfigs = new HashMap<>();
     cacheConfigs.put(CacheNames.PROVIDER, baseConfig.entryTtl(TTL_DEFAULT));
