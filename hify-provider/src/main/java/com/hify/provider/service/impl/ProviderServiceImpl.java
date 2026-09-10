@@ -3,17 +3,13 @@ package com.hify.provider.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hify.common.constant.CacheNames;
 import com.hify.common.dto.PageResult;
 import com.hify.common.exception.BizException;
 import com.hify.common.exception.ErrorCode;
 import com.hify.common.exception.LlmApiException;
-import com.hify.common.exception.LlmApiException.LlmErrorType;
-import com.hify.common.http.LlmHttpClient;
 import com.hify.common.util.PageHelper;
+import com.hify.provider.adapter.ProviderAdapterFactory;
 import com.hify.provider.dto.ConnectionTestResult;
 import com.hify.provider.dto.ProviderDetail;
 import com.hify.provider.dto.ProviderResp;
@@ -24,9 +20,7 @@ import com.hify.provider.mapper.ModelConfigMapper;
 import com.hify.provider.mapper.ProviderHealthMapper;
 import com.hify.provider.mapper.ProviderMapper;
 import com.hify.provider.service.ProviderService;
-import java.time.Duration;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -47,14 +41,10 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ProviderServiceImpl implements ProviderService {
 
-  /** Connectivity probe timeout (CLAUDE.md: 10s). */
-  private static final Duration PROBE_TIMEOUT = Duration.ofSeconds(10);
-
   private final ProviderMapper providerMapper;
   private final ModelConfigMapper modelConfigMapper;
   private final ProviderHealthMapper providerHealthMapper;
-  private final LlmHttpClient llmHttpClient;
-  private final ObjectMapper objectMapper;
+  private final ProviderAdapterFactory adapterFactory;
 
   @Override
   @CacheEvict(cacheNames = CacheNames.PROVIDER, allEntries = true)
@@ -166,7 +156,7 @@ public class ProviderServiceImpl implements ProviderService {
   }
 
   // ----------------------------------------------------------------------
-  // Connectivity probing — dispatch by provider.type
+  // Connectivity probing — delegated to the per-protocol adapters
   // ----------------------------------------------------------------------
 
   @Override
@@ -174,91 +164,11 @@ public class ProviderServiceImpl implements ProviderService {
     Provider provider = requireProvider(id);
     long start = System.currentTimeMillis();
     try {
-      return switch (provider.getType() == null ? "" : provider.getType().toUpperCase(Locale.ROOT)) {
-        case "OPENAI", "DEEPSEEK", "OPENAI_COMPATIBLE" -> probeOpenAiCompatible(provider, start);
-        case "ANTHROPIC" -> probeAnthropic(provider, start);
-        case "OLLAMA" -> probeOllama(provider, start);
-        default -> throw new BizException(ErrorCode.PARAM_ERROR,
-            "不支持的供应商类型: " + provider.getType());
-      };
+      return adapterFactory.get(provider.getType()).testConnection(provider);
     } catch (LlmApiException e) {
       // Transport/HTTP failures are a probe result, not an exception
-      return ConnectionTestResult.failure(elapsed(start), e.getErrorType() + ": " + e.getMessage());
+      return ConnectionTestResult.failure(System.currentTimeMillis() - start,
+          e.getErrorType() + ": " + e.getMessage());
     }
-  }
-
-  /** OPENAI / DEEPSEEK / OPENAI_COMPATIBLE: GET {base}/v1/models with Authorization: Bearer. */
-  private ConnectionTestResult probeOpenAiCompatible(Provider provider, long start) {
-    String body = llmHttpClient.get(
-        v1ModelsUrl(provider.getBaseUrl()),
-        Map.of("Authorization", "Bearer " + requireApiKey(provider)),
-        PROBE_TIMEOUT);
-    return parseModelList(body, "data", start);
-  }
-
-  /** ANTHROPIC: GET {base}/v1/models with x-api-key + anthropic-version headers. */
-  private ConnectionTestResult probeAnthropic(Provider provider, long start) {
-    String body = llmHttpClient.get(
-        v1ModelsUrl(provider.getBaseUrl()),
-        Map.of("x-api-key", requireApiKey(provider), "anthropic-version", "2023-06-01"),
-        PROBE_TIMEOUT);
-    return parseModelList(body, "data", start);
-  }
-
-  /** OLLAMA: GET {base}/api/tags, no auth. */
-  private ConnectionTestResult probeOllama(Provider provider, long start) {
-    String body = llmHttpClient.get(
-        joinUrl(provider.getBaseUrl(), "/api/tags"),
-        Map.of(),
-        PROBE_TIMEOUT);
-    return parseModelList(body, "models", start);
-  }
-
-  /** Read the apiKey out of auth_config, or fail with a config error. */
-  private String requireApiKey(Provider provider) {
-    Map<String, Object> config = provider.getAuthConfig();
-    Object apiKey = config == null ? null : config.get("apiKey");
-    if (apiKey == null || apiKey.toString().isBlank()) {
-      throw new BizException(ErrorCode.PARAM_ERROR,
-          "供应商未配置 apiKey: " + provider.getName());
-    }
-    return apiKey.toString();
-  }
-
-  /** {base}/v1/models — tolerates a base_url that already ends with /v1. */
-  private String v1ModelsUrl(String baseUrl) {
-    String base = trimSlash(baseUrl);
-    return base.toLowerCase(Locale.ROOT).endsWith("/v1") ? base + "/models" : base + "/v1/models";
-  }
-
-  private String joinUrl(String baseUrl, String path) {
-    return trimSlash(baseUrl) + path;
-  }
-
-  private String trimSlash(String url) {
-    if (url == null || url.isBlank()) {
-      throw new BizException(ErrorCode.PARAM_ERROR, "供应商未配置 base_url");
-    }
-    return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
-  }
-
-  /** Extract the advertised model count from the JSON array field. */
-  private ConnectionTestResult parseModelList(String body, String arrayField, long start) {
-    JsonNode array;
-    try {
-      array = objectMapper.readTree(body).path(arrayField);
-    } catch (JsonProcessingException e) {
-      throw new LlmApiException(LlmErrorType.INVALID_REQUEST,
-          "连通性响应不是合法 JSON（base_url 是否正确？）", e);
-    }
-    if (!array.isArray()) {
-      throw new LlmApiException(LlmErrorType.INVALID_REQUEST,
-          "响应中缺少模型列表字段: " + arrayField);
-    }
-    return ConnectionTestResult.success(elapsed(start), array.size());
-  }
-
-  private long elapsed(long start) {
-    return System.currentTimeMillis() - start;
   }
 }
