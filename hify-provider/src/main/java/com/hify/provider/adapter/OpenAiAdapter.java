@@ -4,23 +4,22 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hify.common.http.LlmHttpClient;
 import com.hify.provider.entity.Provider;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import org.springframework.stereotype.Component;
 
 /**
- * Anthropic protocol: GET {base}/v1/models with {@code x-api-key} and the
- * required {@code anthropic-version} header; model ids in {@code data[].id}.
+ * OpenAI protocol: GET {base}/v1/models with {@code Authorization: Bearer},
+ * model ids in {@code data[].id}.
+ *
+ * <p>Serves as the base for OpenAI-compatible providers — subclasses only
+ * override {@link #supportedTypes()} (see {@link OpenAiCompatibleAdapter}).
  */
 @Component
-public class AnthropicAdapter extends AbstractProviderAdapter {
+public class OpenAiAdapter extends AbstractProviderAdapter {
 
-  private static final Set<String> TYPES = Set.of("ANTHROPIC");
+  private static final Set<String> TYPES = Set.of("OPENAI");
 
-  /** Anthropic requires an explicit API version header. */
-  private static final String ANTHROPIC_VERSION = "2023-06-01";
-
-  public AnthropicAdapter(LlmHttpClient llmHttpClient, ObjectMapper objectMapper) {
+  public OpenAiAdapter(LlmHttpClient llmHttpClient, ObjectMapper objectMapper) {
     super(llmHttpClient, objectMapper);
   }
 
@@ -33,7 +32,7 @@ public class AnthropicAdapter extends AbstractProviderAdapter {
   public List<String> listModels(Provider provider) {
     String body = llmHttpClient.get(
         v1ModelsUrl(provider.getBaseUrl()),
-        Map.of("x-api-key", requireApiKey(provider), "anthropic-version", ANTHROPIC_VERSION),
+        bearerHeaders(provider),
         PROBE_TIMEOUT);
     return parseModelIds(body, "data", "id");
   }

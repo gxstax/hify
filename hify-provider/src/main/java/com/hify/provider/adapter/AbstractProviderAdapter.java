@@ -11,12 +11,20 @@ import com.hify.common.http.LlmHttpClient;
 import com.hify.provider.dto.ConnectionTestResult;
 import com.hify.provider.entity.Provider;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 /**
  * Shared plumbing for provider adapters: HTTP client, JSON parsing, auth
- * extraction and URL joining. Subclasses only declare their protocol.
+ * extraction and URL joining. Subclasses only declare their protocol by
+ * implementing {@link #listModels}; the connectivity probe (list models and
+ * count them) is the template method here.
+ *
+ * <p>Errors follow the project contract: transport/HTTP problems raise
+ * {@link LlmApiException} (callers turn them into a failed probe result),
+ * configuration problems raise {@link BizException}.
  */
 public abstract class AbstractProviderAdapter implements ProviderAdapter {
 
@@ -29,6 +37,22 @@ public abstract class AbstractProviderAdapter implements ProviderAdapter {
   protected AbstractProviderAdapter(LlmHttpClient llmHttpClient, ObjectMapper objectMapper) {
     this.llmHttpClient = llmHttpClient;
     this.objectMapper = objectMapper;
+  }
+
+  /**
+   * Connectivity probe: listing the models proves endpoint + credentials work,
+   * and yields the model count for free.
+   */
+  @Override
+  public ConnectionTestResult testConnection(Provider provider) {
+    long start = System.currentTimeMillis();
+    List<String> models = listModels(provider);
+    return ConnectionTestResult.success(System.currentTimeMillis() - start, models.size());
+  }
+
+  /** {@code Authorization: Bearer <apiKey>} — the OpenAI-family auth header. */
+  protected Map<String, String> bearerHeaders(Provider provider) {
+    return Map.of("Authorization", "Bearer " + requireApiKey(provider));
   }
 
   /** Read the apiKey out of auth_config, or fail with a config error. */
@@ -59,8 +83,12 @@ public abstract class AbstractProviderAdapter implements ProviderAdapter {
     return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
   }
 
-  /** Extract the advertised model count from the JSON array field. */
-  protected ConnectionTestResult parseModelList(String body, String arrayField, long start) {
+  /**
+   * Extract model ids from a JSON array field: {@code arrayField} locates the
+   * array ("data" for OpenAI-style APIs, "models" for Ollama), {@code idField}
+   * the identifier inside each element ("id", or "name" for Ollama).
+   */
+  protected List<String> parseModelIds(String body, String arrayField, String idField) {
     JsonNode array;
     try {
       array = objectMapper.readTree(body).path(arrayField);
@@ -72,10 +100,13 @@ public abstract class AbstractProviderAdapter implements ProviderAdapter {
       throw new LlmApiException(LlmErrorType.INVALID_REQUEST,
           "响应中缺少模型列表字段: " + arrayField);
     }
-    return ConnectionTestResult.success(elapsed(start), array.size());
-  }
-
-  protected long elapsed(long start) {
-    return System.currentTimeMillis() - start;
+    List<String> ids = new ArrayList<>(array.size());
+    for (JsonNode node : array) {
+      JsonNode id = node.path(idField);
+      if (id.isTextual() && !id.asText().isBlank()) {
+        ids.add(id.asText());
+      }
+    }
+    return ids;
   }
 }

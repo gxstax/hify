@@ -2,20 +2,19 @@ package com.hify.provider.adapter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hify.common.http.LlmHttpClient;
-import com.hify.provider.dto.ConnectionTestResult;
-import com.hify.provider.entity.Provider;
-import java.util.Map;
 import java.util.Set;
 import org.springframework.stereotype.Component;
 
 /**
- * OpenAI-style protocol: GET {base}/v1/models with {@code Authorization: Bearer}.
- * Covers OpenAI itself, DeepSeek and self-hosted OpenAI-compatible gateways.
+ * OpenAI-compatible providers: same wire protocol as {@link OpenAiAdapter}
+ * (Bearer auth, {@code /v1/models}, {@code data[].id}) — no extra code, only
+ * a different set of provider types. Covers self-hosted gateways and vendors
+ * following the OpenAI API shape (e.g. DeepSeek).
  */
 @Component
-public class OpenAiCompatibleAdapter extends AbstractProviderAdapter {
+public class OpenAiCompatibleAdapter extends OpenAiAdapter {
 
-  private static final Set<String> TYPES = Set.of("OPENAI", "DEEPSEEK", "OPENAI_COMPATIBLE");
+  private static final Set<String> TYPES = Set.of("OPENAI_COMPATIBLE", "DEEPSEEK");
 
   public OpenAiCompatibleAdapter(LlmHttpClient llmHttpClient, ObjectMapper objectMapper) {
     super(llmHttpClient, objectMapper);
@@ -24,15 +23,5 @@ public class OpenAiCompatibleAdapter extends AbstractProviderAdapter {
   @Override
   public Set<String> supportedTypes() {
     return TYPES;
-  }
-
-  @Override
-  public ConnectionTestResult testConnection(Provider provider) {
-    long start = System.currentTimeMillis();
-    String body = llmHttpClient.get(
-        v1ModelsUrl(provider.getBaseUrl()),
-        Map.of("Authorization", "Bearer " + requireApiKey(provider)),
-        PROBE_TIMEOUT);
-    return parseModelList(body, "data", start);
   }
 }

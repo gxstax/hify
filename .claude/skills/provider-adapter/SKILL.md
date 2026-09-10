@@ -11,15 +11,18 @@ Hify 的供应商协议差异由**策略模式**承载：每种协议一个 `Pro
 
 ```
 com.hify.provider.adapter/
-├── ProviderAdapter.java            # 接口: supportedTypes() + testConnection(Provider)
-├── AbstractProviderAdapter.java    # 抽象基类: HTTP/解析/鉴权/URL 辅助
-├── OpenAiCompatibleAdapter.java    # OPENAI / DEEPSEEK / OPENAI_COMPATIBLE
+├── ProviderAdapter.java            # 接口: supportedTypes() + listModels(Provider) + testConnection(Provider)
+├── AbstractProviderAdapter.java    # 抽象基类: HTTP/解析/鉴权/URL 辅助 + testConnection 模板实现
+├── OpenAiAdapter.java              # OPENAI（Bearer + /v1/models + data[].id）
+├── OpenAiCompatibleAdapter.java    # extends OpenAiAdapter，零额外代码，只换 supportedTypes
 ├── AnthropicAdapter.java           # ANTHROPIC（x-api-key + anthropic-version）
-├── OllamaAdapter.java              # OLLAMA（/api/tags，无鉴权）
+├── OllamaAdapter.java              # OLLAMA（/api/tags，无鉴权，models[].name）
 └── ProviderAdapterFactory.java     # 构造注入 List<ProviderAdapter> 自动索引
 ```
 
-调用链：`ProviderController.testConnection` → `ProviderServiceImpl.testConnection`（捕获 `LlmApiException` 转 `success=false`；`BizException` 直接抛）→ `ProviderAdapterFactory.get(type)` → 对应 Adapter。
+调用链：`ProviderController.testConnection` → `ProviderServiceImpl.testConnection`（捕获 `LlmApiException` 转 `success=false`；`BizException` 直接抛）→ `ProviderAdapterFactory.getAdapter(type)` → 对应 Adapter。
+
+**testConnection 是基类的模板方法**（`listModels()` 计时 + 计数），子类只实现 `listModels`。
 
 ## 固定流程
 
@@ -51,18 +54,19 @@ public class XxxAdapter extends AbstractProviderAdapter {
   public Set<String> supportedTypes() { return TYPES; }
 
   @Override
-  public ConnectionTestResult testConnection(Provider provider) {
-    long start = System.currentTimeMillis();
+  public List<String> listModels(Provider provider) {
     String body = llmHttpClient.get(
         /* URL：v1ModelsUrl(baseUrl) 或 joinUrl(baseUrl, "/path") */,
-        /* headers：Bearer / x-api-key / 空 Map */,
+        /* headers：bearerHeaders(provider) / x-api-key Map / 空 Map */,
         PROBE_TIMEOUT);                       // 基类常量，10s（CLAUDE.md）
-    return parseModelList(body, /* "data" | "models" */, start);
+    return parseModelIds(body, /* "data" | "models" */, /* "id" | "name" */);
   }
 }
 ```
 
-基类已提供、**不要重复实现**：`requireApiKey`（从 auth_config 取 apiKey，缺失抛 BizException）、`v1ModelsUrl`（容错 `/v1` 结尾）、`joinUrl`、`parseModelList`（含"非法 JSON/缺字段"分类）、`elapsed`。
+**OpenAI 兼容的供应商不要再写新类**：`OpenAiCompatibleAdapter extends OpenAiAdapter` 只覆盖 `supportedTypes()` 即可（DeepSeek 就是这样接入的零代码复用）。只有协议真正不同（端点/鉴权/响应字段）才写新 Adapter。
+
+基类已提供、**不要重复实现**：`testConnection`（模板方法：listModels + 计时计数）、`bearerHeaders`（Bearer 鉴权）、`requireApiKey`（从 auth_config 取 apiKey，缺失抛 BizException）、`v1ModelsUrl`（容错 `/v1` 结尾）、`joinUrl`、`parseModelIds`（含"非法 JSON/缺字段"分类）。
 
 错误边界（必须保持）：
 - 传输/HTTP 失败 → 抛 `LlmApiException`，由 Service 转成 `success=false` 的探测结果

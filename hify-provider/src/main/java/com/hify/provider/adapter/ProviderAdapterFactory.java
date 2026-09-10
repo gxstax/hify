@@ -37,7 +37,7 @@ public class ProviderAdapterFactory {
    * @throws BizException when the type has no adapter — a configuration error,
    *         not a connectivity failure
    */
-  public ProviderAdapter get(String type) {
+  public ProviderAdapter getAdapter(String type) {
     ProviderAdapter adapter = type == null ? null
         : adaptersByType.get(type.toUpperCase(Locale.ROOT));
     if (adapter == null) {

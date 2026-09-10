@@ -164,7 +164,7 @@ public class ProviderServiceImpl implements ProviderService {
     Provider provider = requireProvider(id);
     long start = System.currentTimeMillis();
     try {
-      return adapterFactory.get(provider.getType()).testConnection(provider);
+      return adapterFactory.getAdapter(provider.getType()).testConnection(provider);
     } catch (LlmApiException e) {
       // Transport/HTTP failures are a probe result, not an exception
       return ConnectionTestResult.failure(System.currentTimeMillis() - start,
