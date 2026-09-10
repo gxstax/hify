@@ -10,7 +10,6 @@ import com.hify.provider.dto.ProviderUpdateReq;
 import com.hify.provider.entity.Provider;
 import com.hify.provider.service.ProviderService;
 import jakarta.validation.Valid;
-import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -50,9 +49,7 @@ public class ProviderController {
       @RequestParam(defaultValue = "20") int pageSize,
       @RequestParam(required = false) String type,
       @RequestParam(required = false) Boolean enabled) {
-    PageResult<Provider> paged = providerService.listProviders(page, pageSize, type, enabled);
-    List<ProviderResp> items = paged.getList().stream().map(ProviderResp::from).toList();
-    return Result.ok(new PageResult<>(items, paged.getTotal(), paged.getPage(), paged.getPageSize()));
+    return Result.ok(providerService.listProviders(page, pageSize, type, enabled));
   }
 
   /** GET /api/v1/providers/{id} — provider + modelConfigs + health */

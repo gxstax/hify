@@ -14,8 +14,8 @@ public class ProviderCreateReq {
   private String name;
 
   @NotBlank(message = "供应商类型不能为空")
-  @Pattern(regexp = "OPENAI|ANTHROPIC|OLLAMA|OPENAI_COMPATIBLE",
-      message = "不支持的供应商类型（OPENAI / ANTHROPIC / OLLAMA / OPENAI_COMPATIBLE）")
+  @Pattern(regexp = "OPENAI|ANTHROPIC|DEEPSEEK|OLLAMA|OPENAI_COMPATIBLE",
+      message = "不支持的供应商类型（OPENAI / ANTHROPIC / DEEPSEEK / OLLAMA / OPENAI_COMPATIBLE）")
   private String type;
 
   @NotBlank(message = "API 基础地址不能为空")

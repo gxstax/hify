@@ -6,8 +6,11 @@ export interface TableColumn {
   label: string
   /** Row field rendered by default when no slot is given. */
   prop?: string
-  /** Column width: number (px) or string (e.g. '120px'). */
+  /** Fixed column width: number (px) or string (e.g. '120px'). */
   width?: number | string
+  /** Minimum width for flexible columns (no width): el-table distributes the
+   *  remaining space across min-width columns proportionally. */
+  minWidth?: number | string
   /** Named scoped slot to render this column: <template #slotName="{ row }">. */
   slot?: string
   /** Truncate overflow with a hover tooltip (long text columns). */

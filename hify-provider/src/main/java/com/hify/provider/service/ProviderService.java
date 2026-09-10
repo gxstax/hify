@@ -3,6 +3,7 @@ package com.hify.provider.service;
 import com.hify.common.dto.PageResult;
 import com.hify.provider.dto.ConnectionTestResult;
 import com.hify.provider.dto.ProviderDetail;
+import com.hify.provider.dto.ProviderResp;
 import com.hify.provider.entity.Provider;
 
 /**
@@ -17,8 +18,12 @@ public interface ProviderService {
   /** Provider + its model configs + latest health probe (null when never probed). */
   ProviderDetail getDetail(Long id);
 
-  /** Page through providers, optionally filtered by type / enabled, newest first. */
-  PageResult<Provider> listProviders(int page, int pageSize, String type, Boolean enabled);
+  /**
+   * Page through providers, optionally filtered by type / enabled, newest
+   * first. Each item carries its latest health probe and enabled-model count
+   * (joined in the service; not cached — health data must stay fresh).
+   */
+  PageResult<ProviderResp> listProviders(int page, int pageSize, String type, Boolean enabled);
 
   /** Update non-null fields of the provider with the given id. */
   void updateProvider(Long id, Provider update);

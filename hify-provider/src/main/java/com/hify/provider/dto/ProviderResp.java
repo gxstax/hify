@@ -7,6 +7,10 @@ import lombok.Data;
 /**
  * Provider view returned to clients. Deliberately excludes authConfig —
  * credentials must never leave the server. API keys are write-only.
+ *
+ * <p>{@code healthStatus / healthLatencyMs / enabledModelCount} are filled
+ * only by the list endpoint (joined from provider_health and model_config);
+ * on detail payloads they stay null.
  */
 @Data
 public class ProviderResp {
@@ -19,6 +23,15 @@ public class ProviderResp {
   private Boolean enabled;
   private LocalDateTime createdAt;
   private LocalDateTime updatedAt;
+
+  /** Latest probe status: UP / DOWN / DEGRADED / UNKNOWN (from provider_health). */
+  private String healthStatus;
+
+  /** Latest probe latency, ms. */
+  private Integer healthLatencyMs;
+
+  /** Number of enabled model configs under this provider. */
+  private Long enabledModelCount;
 
   public static ProviderResp from(Provider p) {
     ProviderResp resp = new ProviderResp();

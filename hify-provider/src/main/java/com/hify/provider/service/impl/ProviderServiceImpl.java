@@ -16,6 +16,7 @@ import com.hify.common.http.LlmHttpClient;
 import com.hify.common.util.PageHelper;
 import com.hify.provider.dto.ConnectionTestResult;
 import com.hify.provider.dto.ProviderDetail;
+import com.hify.provider.dto.ProviderResp;
 import com.hify.provider.entity.ModelConfig;
 import com.hify.provider.entity.Provider;
 import com.hify.provider.entity.ProviderHealth;
@@ -24,9 +25,10 @@ import com.hify.provider.mapper.ProviderHealthMapper;
 import com.hify.provider.mapper.ProviderMapper;
 import com.hify.provider.service.ProviderService;
 import java.time.Duration;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.List;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -77,8 +79,9 @@ public class ProviderServiceImpl implements ProviderService {
   }
 
   @Override
-  @Cacheable(cacheNames = CacheNames.PROVIDER, key = "'list:' + #page + ':' + #pageSize + ':' + (#type != null ? #type : '') + ':' + (#enabled != null ? #enabled : '')")
-  public PageResult<Provider> listProviders(int page, int pageSize, String type,
+  // Intentionally NOT cached: items carry live health probe data that changes
+  // every minute (HealthCheckTask); a 30min cache would freeze it.
+  public PageResult<ProviderResp> listProviders(int page, int pageSize, String type,
       Boolean enabled) {
     LambdaQueryWrapper<Provider> wrapper = Wrappers.<Provider>lambdaQuery()
         .eq(type != null && !type.isBlank(), Provider::getType, type)
@@ -86,7 +89,40 @@ public class ProviderServiceImpl implements ProviderService {
         .orderByDesc(Provider::getId);
     Page<Provider> mpPage = PageHelper.toPage(page, pageSize);
     providerMapper.selectPage(mpPage, wrapper);
-    return PageHelper.toPageResult(mpPage);
+
+    List<ProviderResp> items = toRespList(mpPage.getRecords());
+    return new PageResult<>(items, mpPage.getTotal(), (int) mpPage.getCurrent(),
+        (int) mpPage.getSize());
+  }
+
+  /** Map entities to responses, batch-joining health probe and model counts. */
+  private List<ProviderResp> toRespList(List<Provider> providers) {
+    if (providers.isEmpty()) {
+      return List.of();
+    }
+    List<Long> ids = providers.stream().map(Provider::getId).toList();
+
+    Map<Long, ProviderHealth> healthByProvider = providerHealthMapper
+        .selectList(Wrappers.<ProviderHealth>lambdaQuery().in(ProviderHealth::getProviderId, ids))
+        .stream()
+        .collect(Collectors.toMap(ProviderHealth::getProviderId, h -> h, (a, b) -> a));
+
+    Map<Long, Long> modelCountByProvider = modelConfigMapper
+        .selectList(Wrappers.<ModelConfig>lambdaQuery()
+            .in(ModelConfig::getProviderId, ids)
+            .eq(ModelConfig::getEnabled, true))
+        .stream()
+        .collect(Collectors.groupingBy(ModelConfig::getProviderId, Collectors.counting()));
+
+    return providers.stream().map(p -> {
+      ProviderResp resp = ProviderResp.from(p);
+      ProviderHealth health = healthByProvider.get(p.getId());
+      resp.setHealthStatus(health == null || health.getStatus() == null
+          ? "UNKNOWN" : health.getStatus());
+      resp.setHealthLatencyMs(health == null ? null : health.getLatencyMs());
+      resp.setEnabledModelCount(modelCountByProvider.getOrDefault(p.getId(), 0L));
+      return resp;
+    }).toList();
   }
 
   @Override
@@ -139,7 +175,7 @@ public class ProviderServiceImpl implements ProviderService {
     long start = System.currentTimeMillis();
     try {
       return switch (provider.getType() == null ? "" : provider.getType().toUpperCase(Locale.ROOT)) {
-        case "OPENAI", "OPENAI_COMPATIBLE" -> probeOpenAiCompatible(provider, start);
+        case "OPENAI", "DEEPSEEK", "OPENAI_COMPATIBLE" -> probeOpenAiCompatible(provider, start);
         case "ANTHROPIC" -> probeAnthropic(provider, start);
         case "OLLAMA" -> probeOllama(provider, start);
         default -> throw new BizException(ErrorCode.PARAM_ERROR,
@@ -151,7 +187,7 @@ public class ProviderServiceImpl implements ProviderService {
     }
   }
 
-  /** OPENAI / OPENAI_COMPATIBLE: GET {base}/v1/models with Authorization: Bearer. */
+  /** OPENAI / DEEPSEEK / OPENAI_COMPATIBLE: GET {base}/v1/models with Authorization: Bearer. */
   private ConnectionTestResult probeOpenAiCompatible(Provider provider, long start) {
     String body = llmHttpClient.get(
         v1ModelsUrl(provider.getBaseUrl()),

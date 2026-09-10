@@ -25,7 +25,7 @@
 CREATE TABLE IF NOT EXISTS provider (
   id         BIGINT        NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
   name       VARCHAR(100)  NOT NULL COMMENT '供应商名称，唯一',
-  type       VARCHAR(30)   NOT NULL COMMENT 'OPENAI / ANTHROPIC / OLLAMA / OPENAI_COMPATIBLE',
+  type       VARCHAR(30)   NOT NULL COMMENT 'OPENAI / ANTHROPIC / DEEPSEEK / OLLAMA / OPENAI_COMPATIBLE',
   base_url   VARCHAR(500)  NOT NULL COMMENT 'API 基础地址',
   auth_config JSON         NULL COMMENT '鉴权配置，结构按 type 不同',
   description VARCHAR(255) NULL COMMENT '备注',

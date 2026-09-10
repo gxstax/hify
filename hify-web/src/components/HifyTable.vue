@@ -82,6 +82,7 @@ defineExpose({ refresh: load })
         :label="col.label"
         :prop="col.prop"
         :width="col.width"
+        :min-width="col.minWidth"
         :show-overflow-tooltip="col.showOverflowTooltip"
       >
         <!-- Custom render column via named slot; otherwise Element renders prop -->
