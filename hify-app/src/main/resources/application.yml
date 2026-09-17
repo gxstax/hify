@@ -47,3 +47,13 @@ resilience4j:
         failure-rate-threshold: 50
         wait-duration-in-open-state: 30s
         permitted-number-of-calls-in-half-open-state: 3
+
+# Chat engine (hify-chat).
+hify:
+  chat:
+    # SseEmitter timeout. Must exceed the 60s conversation budget so the
+    # business timeout fires first and closes the stream cleanly; the container
+    # default (30s on Tomcat) would otherwise cut long replies short.
+    sse-timeout-ms: 65000
+    # TTL of the context window cache, key = session:{sessionId}.
+    context-ttl: 2h

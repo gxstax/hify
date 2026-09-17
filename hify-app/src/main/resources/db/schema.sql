@@ -148,15 +148,18 @@ CREATE TABLE IF NOT EXISTS agent_tool (
 -- chat_session: one conversation with an agent
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS chat_session (
-  id         BIGINT       NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
-  agent_id   BIGINT       NOT NULL COMMENT 'Agent this session talks to, agent.id (app-layer FK)',
-  title      VARCHAR(128) NULL COMMENT 'Session title, usually derived from the first message',
-  status     varchar(20)  NOT NULL DEFAULT 'ACTIVE' COMMENT 'status: ACTIVE / ARCHIVED',
-  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
-  updated_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
-  deleted    TINYINT      NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
+  id              BIGINT       NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+  agent_id        BIGINT       NOT NULL COMMENT 'agent.id (app-layer FK)',
+  title           VARCHAR(128) NULL COMMENT 'Derived from the first user message',
+  status          VARCHAR(20)  NOT NULL DEFAULT 'ACTIVE' COMMENT 'ACTIVE / ARCHIVED',
+  last_message_at DATETIME     NULL COMMENT 'Last activity, for list ordering',
+  message_count   INT          NOT NULL DEFAULT 0 COMMENT 'Messages in the session',
+  created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
+  updated_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
+  deleted         TINYINT      NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
   PRIMARY KEY (id),
-  KEY idx_chat_session_agent_id (agent_id)
+  KEY idx_chat_session_agent_id (agent_id),
+  KEY idx_chat_session_last_message_at (last_message_at)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci
@@ -164,19 +167,33 @@ CREATE TABLE IF NOT EXISTS chat_session (
 
 -- ---------------------------------------------------------------------------
 -- chat_message: a single message in a session (fastest growing table)
+--
+-- NO logical delete on purpose: rows are physically removed together with
+-- their session (session delete -> DELETE WHERE session_id). A `deleted`
+-- column would force `WHERE deleted = 0` onto every read of the hottest table
+-- and widen the (session_id, id) index. Precedent: provider_health.
+--
+-- status state machine (streaming writes a placeholder first):
+--   user      -> COMPLETED immediately
+--   assistant -> GENERATING, then COMPLETED (content + usage) or FAILED
+--                (content keeps whatever deltas were already produced)
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS chat_message (
-  id         BIGINT      NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
-  session_id BIGINT      NOT NULL COMMENT 'Owning session, chat_session.id (app-layer FK)',
-  role       VARCHAR(16) NOT NULL COMMENT 'Message role: user | assistant | system | tool',
-  content    longtext    NOT NULL COMMENT 'Message text (MEDIUMTEXT: replies can exceed TEXT limits)',
-  tokens     int         NOT NULL DEFAULT 0 COMMENT 'token数（上下文管理用）',
-  meta       JSON        NULL COMMENT 'Extras: tool calls, RAG citations, ...',
-  created_at DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
-  updated_at DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
-  deleted    TINYINT     NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
+  id                BIGINT      NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+  session_id        BIGINT      NOT NULL COMMENT 'chat_session.id (app-layer FK)',
+  parent_id         BIGINT      NULL COMMENT 'Message being replied to; NULL = first message',
+  role              VARCHAR(16) NOT NULL COMMENT 'user | assistant | system | tool',
+  content           LONGTEXT    NOT NULL COMMENT 'Message text (LONGTEXT: replies can be very long)',
+  status            VARCHAR(16) NOT NULL DEFAULT 'COMPLETED' COMMENT 'GENERATING / COMPLETED / FAILED',
+  finish_reason     VARCHAR(32) NULL COMMENT 'stop | length | tool_calls | cancelled | ...',
+  prompt_tokens     INT         NOT NULL DEFAULT 0 COMMENT 'Prompt tokens (0 when unreported)',
+  completion_tokens INT         NOT NULL DEFAULT 0 COMMENT 'Completion tokens (0 when unreported)',
+  meta              JSON        NULL COMMENT 'tool_calls / tool_call_id / RAG citations',
+  created_at        DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
+  updated_at        DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
   PRIMARY KEY (id),
-  KEY idx_chat_message_session_id_id (session_id, id)
+  KEY idx_chat_message_session_id_id (session_id, id),
+  KEY idx_chat_message_parent_id (parent_id)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci
