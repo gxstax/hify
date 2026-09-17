@@ -1,10 +1,12 @@
 package com.hify.common.config;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.jsontype.impl.LaissezFaireSubTypeValidator;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
 import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -44,8 +46,19 @@ public class RedisConfig {
     ObjectMapper mapper = new ObjectMapper();
     mapper.registerModule(javaTimeModule);
     mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-    // GenericJackson2JsonRedisSerializer activates default typing on the
-    // mapper it receives, so @class metadata is preserved for deserialization.
+
+    // CRITICAL: enable default typing explicitly. Only the NO-ARG
+    // GenericJackson2JsonRedisSerializer constructor activates typing
+    // internally; the constructor taking an ObjectMapper trusts the caller.
+    // Without this, cached values are written WITHOUT @class metadata and are
+    // read back as LinkedHashMap — blowing up on the first cache hit with
+    // "LinkedHashMap cannot be cast to <DTO>".
+    mapper.activateDefaultTyping(
+        LaissezFaireSubTypeValidator.instance,
+        ObjectMapper.DefaultTyping.NON_FINAL,
+        JsonTypeInfo.As.PROPERTY);
+    GenericJackson2JsonRedisSerializer.registerNullValueSerializer(mapper, null);
+
     return new GenericJackson2JsonRedisSerializer(mapper);
   }
 

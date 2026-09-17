@@ -42,4 +42,21 @@ public interface ProviderAdapter {
    * @throws com.hify.common.exception.BizException on configuration errors
    */
   ConnectionTestResult testConnection(Provider provider);
+
+  /**
+   * One-shot (non-streaming) chat completion.
+   *
+   * @throws com.hify.common.exception.LlmApiException classified transport/HTTP
+   *         failure (see CLAUDE.md retry rules)
+   */
+  ChatResponse chat(Provider provider, ChatRequest request);
+
+  /**
+   * Streaming chat completion. Blocking call: deltas flow through the callback
+   * until the provider ends the stream, then {@code onComplete} fires once
+   * with the aggregated result. Run it on the {@code llmExecutor} pool.
+   *
+   * @throws com.hify.common.exception.LlmApiException classified failure
+   */
+  void streamChat(Provider provider, ChatRequest request, ChatStreamCallback callback);
 }

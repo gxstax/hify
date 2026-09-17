@@ -37,4 +37,18 @@ public class AnthropicAdapter extends AbstractProviderAdapter {
         PROBE_TIMEOUT);
     return parseModelIds(body, "data", "id");
   }
+
+  /** TODO: map onto the Messages API ({@code /v1/messages}) in a later task. */
+  @Override
+  public ChatResponse chat(Provider provider, ChatRequest request) {
+    throw new UnsupportedOperationException(
+        "ANTHROPIC chat completions are not implemented yet");
+  }
+
+  /** TODO: Anthropic streams with named events (content_block_delta/message_stop). */
+  @Override
+  public void streamChat(Provider provider, ChatRequest request, ChatStreamCallback callback) {
+    throw new UnsupportedOperationException(
+        "ANTHROPIC streaming is not implemented yet");
+  }
 }

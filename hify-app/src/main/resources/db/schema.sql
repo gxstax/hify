@@ -87,16 +87,18 @@ CREATE TABLE IF NOT EXISTS provider_health (
 -- agent: agent definition (model binding + system prompt; MCP tools via agent_tool)
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS agent (
-  id              BIGINT        NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
-  name            VARCHAR(128)  NOT NULL COMMENT 'Agent name shown in the console',
-  description     VARCHAR(512)  NULL COMMENT 'Short description',
-  system_prompt   TEXT          NULL COMMENT 'System prompt defining agent behavior',
-  model_config_id BIGINT        NOT NULL COMMENT 'Bound model, model_config.id (app-layer FK)',
-  temperature     DOUBLE        NULL COMMENT 'Sampling temperature; NULL = provider default',
-  max_tokens      INT           NULL COMMENT 'Max output tokens; NULL = provider default',
-  created_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
-  updated_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
-  deleted         TINYINT       NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
+  id                BIGINT        NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+  name              VARCHAR(128)  NOT NULL COMMENT 'Agent name shown in the console',
+  description       VARCHAR(512)  NULL COMMENT 'Short description',
+  system_prompt     TEXT          NULL COMMENT 'System prompt defining agent behavior',
+  model_config_id   BIGINT        NOT NULL COMMENT 'Bound model, model_config.id (app-layer FK)',
+  temperature       DOUBLE        NULL COMMENT 'Sampling temperature; NULL = provider default',
+  max_tokens        INT           NULL COMMENT 'Max output tokens; NULL = provider default',
+  max_context_turns INT           NOT NULL DEFAULT 10 COMMENT '保留最近几轮上下文',
+  enabled           TINYINT       NOT NULL DEFAULT 1,
+  created_at        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
+  updated_at        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
+  deleted           TINYINT       NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
   PRIMARY KEY (id),
   KEY idx_agent_model_config_id (model_config_id)
 ) ENGINE = InnoDB
@@ -131,12 +133,12 @@ CREATE TABLE IF NOT EXISTS mcp_server (
 CREATE TABLE IF NOT EXISTS agent_tool (
   id            BIGINT    NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
   agent_id      BIGINT    NOT NULL COMMENT 'agent.id (app-layer FK)',
-  mcp_server_id BIGINT    NOT NULL COMMENT 'mcp_server.id (app-layer FK)',
+  tool_id       BIGINT    NOT NULL COMMENT '关联 mcp_server.id',
   created_at    DATETIME  NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
   updated_at    DATETIME  NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
   deleted       TINYINT   NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
   PRIMARY KEY (id),
-  UNIQUE KEY uk_agent_tool_agent_server (agent_id, mcp_server_id)
+  UNIQUE KEY uk_agent_tool (agent_id, tool_id)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci
@@ -149,6 +151,7 @@ CREATE TABLE IF NOT EXISTS chat_session (
   id         BIGINT       NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
   agent_id   BIGINT       NOT NULL COMMENT 'Agent this session talks to, agent.id (app-layer FK)',
   title      VARCHAR(128) NULL COMMENT 'Session title, usually derived from the first message',
+  status     varchar(20)  NOT NULL DEFAULT 'ACTIVE' COMMENT 'status: ACTIVE / ARCHIVED',
   created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
   updated_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
   deleted    TINYINT      NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
@@ -166,7 +169,8 @@ CREATE TABLE IF NOT EXISTS chat_message (
   id         BIGINT      NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
   session_id BIGINT      NOT NULL COMMENT 'Owning session, chat_session.id (app-layer FK)',
   role       VARCHAR(16) NOT NULL COMMENT 'Message role: user | assistant | system | tool',
-  content    MEDIUMTEXT  NOT NULL COMMENT 'Message text (MEDIUMTEXT: replies can exceed TEXT limits)',
+  content    longtext    NOT NULL COMMENT 'Message text (MEDIUMTEXT: replies can exceed TEXT limits)',
+  tokens     int         NOT NULL DEFAULT 0 COMMENT 'token数（上下文管理用）',
   meta       JSON        NULL COMMENT 'Extras: tool calls, RAG citations, ...',
   created_at DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
   updated_at DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',

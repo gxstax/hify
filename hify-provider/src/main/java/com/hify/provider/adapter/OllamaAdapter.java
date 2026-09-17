@@ -34,4 +34,18 @@ public class OllamaAdapter extends AbstractProviderAdapter {
         PROBE_TIMEOUT);
     return parseModelIds(body, "models", "name");
   }
+
+  /** TODO: map onto Ollama's native {@code /api/chat} in a later task. */
+  @Override
+  public ChatResponse chat(Provider provider, ChatRequest request) {
+    throw new UnsupportedOperationException(
+        "OLLAMA chat completions are not implemented yet");
+  }
+
+  /** TODO: Ollama streams plain JSON lines (message.content deltas, done flag). */
+  @Override
+  public void streamChat(Provider provider, ChatRequest request, ChatStreamCallback callback) {
+    throw new UnsupportedOperationException(
+        "OLLAMA streaming is not implemented yet");
+  }
 }

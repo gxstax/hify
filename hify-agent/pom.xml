@@ -26,6 +26,19 @@
       <artifactId>hify-mcp</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <!-- Cross-module model validation via ModelConfigService (CLAUDE.md:
+         cross-module calls go through Service interfaces, never Mappers/Entities) -->
+    <dependency>
+      <groupId>com.hify</groupId>
+      <artifactId>hify-provider</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <!-- Lombok for entities/DTOs (provided scope is not transitive) -->
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <scope>provided</scope>
+    </dependency>
     <!-- REST controllers -->
     <dependency>
       <groupId>org.springframework.boot</groupId>

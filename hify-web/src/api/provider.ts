@@ -78,6 +78,20 @@ export interface ConnectionTestResult {
   errorMessage?: string | null
 }
 
+/** Bindable model (cross-module picker source, no credentials). */
+export interface ModelConfigBrief {
+  id: number
+  name: string
+  modelId: string
+  providerId: number
+  providerName?: string | null
+  providerType?: string | null
+  contextSize?: number | null
+}
+
+/** GET /v1/model-configs — enabled models under enabled providers. */
+export const listModelConfigs = () => get<ModelConfigBrief[]>('/v1/model-configs')
+
 /** GET /v1/providers — paged list with health + enabled model count. */
 export const getProviderList = (
   page: number,

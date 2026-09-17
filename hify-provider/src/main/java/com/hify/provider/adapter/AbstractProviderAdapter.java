@@ -32,7 +32,7 @@ public abstract class AbstractProviderAdapter implements ProviderAdapter {
   protected static final Duration PROBE_TIMEOUT = Duration.ofSeconds(10);
 
   protected final LlmHttpClient llmHttpClient;
-  private final ObjectMapper objectMapper;
+  protected final ObjectMapper objectMapper;
 
   protected AbstractProviderAdapter(LlmHttpClient llmHttpClient, ObjectMapper objectMapper) {
     this.llmHttpClient = llmHttpClient;
@@ -68,8 +68,14 @@ public abstract class AbstractProviderAdapter implements ProviderAdapter {
 
   /** {base}/v1/models — tolerates a base_url that already ends with /v1. */
   protected String v1ModelsUrl(String baseUrl) {
+    return v1Url(baseUrl, "/models");
+  }
+
+  /** {base}/v1{path} — tolerates a base_url that already ends with /v1. */
+  protected String v1Url(String baseUrl, String path) {
     String base = trimSlash(baseUrl);
-    return base.toLowerCase(Locale.ROOT).endsWith("/v1") ? base + "/models" : base + "/v1/models";
+    String prefix = base.toLowerCase(Locale.ROOT).endsWith("/v1") ? "" : "/v1";
+    return base + prefix + path;
   }
 
   protected String joinUrl(String baseUrl, String path) {
@@ -83,19 +89,33 @@ public abstract class AbstractProviderAdapter implements ProviderAdapter {
     return url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
   }
 
+  /** Parse JSON, mapping malformed payloads to a classified API error. */
+  protected JsonNode readTree(String json) {
+    try {
+      return objectMapper.readTree(json);
+    } catch (JsonProcessingException e) {
+      throw new LlmApiException(LlmErrorType.INVALID_REQUEST,
+          "响应不是合法 JSON（base_url 是否正确？）", e);
+    }
+  }
+
+  /** Serialize an outgoing payload; failure here is a server-side bug. */
+  protected String toJson(Object value) {
+    try {
+      return objectMapper.writeValueAsString(value);
+    } catch (JsonProcessingException e) {
+      throw new LlmApiException(LlmErrorType.SERVER_ERROR,
+          "chat request serialization failed", e);
+    }
+  }
+
   /**
    * Extract model ids from a JSON array field: {@code arrayField} locates the
    * array ("data" for OpenAI-style APIs, "models" for Ollama), {@code idField}
    * the identifier inside each element ("id", or "name" for Ollama).
    */
   protected List<String> parseModelIds(String body, String arrayField, String idField) {
-    JsonNode array;
-    try {
-      array = objectMapper.readTree(body).path(arrayField);
-    } catch (JsonProcessingException e) {
-      throw new LlmApiException(LlmErrorType.INVALID_REQUEST,
-          "连通性响应不是合法 JSON（base_url 是否正确？）", e);
-    }
+    JsonNode array = readTree(body).path(arrayField);
     if (!array.isArray()) {
       throw new LlmApiException(LlmErrorType.INVALID_REQUEST,
           "响应中缺少模型列表字段: " + arrayField);
