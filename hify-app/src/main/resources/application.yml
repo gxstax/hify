@@ -8,10 +8,14 @@ spring:
   application:
     name: hify
   datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:hify}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
-    username: ${MYSQL_USERNAME:root}
-    password: ${MYSQL_PASSWORD:gao5219999}
+    driver-class-name: org.postgresql.Driver
+    # stringtype=unspecified: PostgreSQL is strict about jsonb, while the JSON
+    # columns (auth_config / extra_params / meta / args) are written as plain
+    # strings by JacksonTypeHandler. Without this the inserts fail with
+    # "column is of type jsonb but expression is of type character varying".
+    url: jdbc:postgresql://${PG_HOST:localhost}:${PG_PORT:5432}/${PG_DATABASE:hify}?stringtype=unspecified
+    username: ${PG_USERNAME:postgres}
+    password: ${PG_PASSWORD:370828}
     hikari:
       maximum-pool-size: 10
   data:

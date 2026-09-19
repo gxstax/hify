@@ -57,13 +57,9 @@
       <artifactId>lombok</artifactId>
       <scope>provided</scope>
     </dependency>
-    <!-- MySQL driver (versions managed by spring-boot-dependencies BOM) -->
-    <dependency>
-      <groupId>com.mysql</groupId>
-      <artifactId>mysql-connector-j</artifactId>
-      <scope>runtime</scope>
-    </dependency>
-    <!-- PostgreSQL driver for pgvector -->
+    <!-- PostgreSQL driver: the primary datastore (versions managed by the
+         spring-boot-dependencies BOM) and the future home of pgvector for the
+         knowledge module. -->
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>
