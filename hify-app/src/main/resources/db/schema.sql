@@ -154,6 +154,7 @@ CREATE TABLE IF NOT EXISTS chat_session (
   status          VARCHAR(20)  NOT NULL DEFAULT 'ACTIVE' COMMENT 'ACTIVE / ARCHIVED',
   last_message_at DATETIME     NULL COMMENT 'Last activity, for list ordering',
   message_count   INT          NOT NULL DEFAULT 0 COMMENT 'Messages in the session',
+  last_message_preview VARCHAR(64) NULL COMMENT 'Excerpt of the newest message, for the session list',
   created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
   updated_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
   deleted         TINYINT      NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',

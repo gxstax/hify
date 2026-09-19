@@ -47,18 +47,23 @@ public interface ChatPersistenceService {
   ChatMessage createAssistantPlaceholder(Long sessionId, Long parentId);
 
   /**
-   * Mark the placeholder COMPLETED with the aggregated result. No-op when the
-   * row is no longer GENERATING (e.g. already failed by a timeout handler).
+   * Mark the placeholder COMPLETED with the aggregated result, and refresh the
+   * session's list excerpt. No-op when the row is no longer GENERATING (e.g.
+   * already failed by a timeout handler).
+   *
+   * @param sessionId needed to keep chat_session.last_message_preview in step
    */
-  void finishAssistantMessage(Long messageId, String content, String finishReason,
+  void finishAssistantMessage(Long sessionId, Long messageId, String content, String finishReason,
       Integer promptTokens, Integer completionTokens);
 
   /**
    * Mark the placeholder FAILED, keeping whatever deltas were produced before
    * the failure so the user still sees the partial answer. No-op when the row
    * is no longer GENERATING.
+   *
+   * @param sessionId needed to keep chat_session.last_message_preview in step
    */
-  void failAssistantMessage(Long messageId, String partialContent);
+  void failAssistantMessage(Long sessionId, Long messageId, String partialContent);
 
   /**
    * Delete a session: logical delete of the session row plus a physical delete

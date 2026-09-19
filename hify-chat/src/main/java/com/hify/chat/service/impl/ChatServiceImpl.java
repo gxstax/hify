@@ -326,8 +326,8 @@ public class ChatServiceImpl implements ChatService {
       String full = accumulated.length() > 0 ? accumulated.toString() : response.getContent();
       // Persist before notifying: the DB is the source of truth and the client
       // may already be gone by the time the done event is written.
-      chatPersistence.finishAssistantMessage(assistantMessageId, full, response.getFinishReason(),
-          response.getPromptTokens(), response.getCompletionTokens());
+      chatPersistence.finishAssistantMessage(sessionId, assistantMessageId, full,
+          response.getFinishReason(), response.getPromptTokens(), response.getCompletionTokens());
       // Normalize empty tool lists to null: adapters hand back List.of() when
       // the model answered directly, and caching that puts Jackson's internal
       // ImmutableCollections$ListN type name into the Redis value.
@@ -347,7 +347,7 @@ public class ChatServiceImpl implements ChatService {
     private void onClientGone(ClientDisconnectedException e) {
       log.info("client disconnected mid-stream, sessionId={}, messageId={}",
           sessionId, assistantMessageId);
-      chatPersistence.failAssistantMessage(assistantMessageId, accumulated.toString());
+      chatPersistence.failAssistantMessage(sessionId, assistantMessageId, accumulated.toString());
       // The socket is dead; completeWithError just releases emitter resources.
       emitter.completeWithError(e);
     }
@@ -355,7 +355,7 @@ public class ChatServiceImpl implements ChatService {
     /** Provider error, timeout or cancel: record the partial text, end the stream. */
     private void onFailure(Exception e) {
       log.warn("stream failed, sessionId={}, messageId={}", sessionId, assistantMessageId, e);
-      chatPersistence.failAssistantMessage(assistantMessageId, accumulated.toString());
+      chatPersistence.failAssistantMessage(sessionId, assistantMessageId, accumulated.toString());
 
       if (cancelled.get()) {
         // Timed out: nobody is listening any more, just release resources.

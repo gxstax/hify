@@ -29,4 +29,7 @@ public final class ChatConstants {
 
   /** Session titles are derived from the first user message, truncated here. */
   public static final int TITLE_MAX_LENGTH = 30;
+
+  /** Session-list excerpt length; the UI truncates further with CSS. */
+  public static final int PREVIEW_MAX_LENGTH = 60;
 }

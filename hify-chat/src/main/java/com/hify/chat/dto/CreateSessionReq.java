@@ -13,7 +13,9 @@ public class CreateSessionReq {
   private Long agentId;
 
   /** Optional display name; when omitted it is derived from the first user
-   *  message once one arrives. */
+   *  message once one arrives. Either way it is stored as a single line of at
+   *  most 30 characters — longer input is truncated, not rejected. (The 128
+   *  here only guards the request body against abuse.) */
   @Size(max = 128, message = "title 长度不能超过 128 字符")
   private String title;
 }

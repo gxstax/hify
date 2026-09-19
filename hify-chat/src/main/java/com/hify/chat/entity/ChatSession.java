@@ -30,4 +30,9 @@ public class ChatSession extends BaseEntity {
 
   /** Number of messages written so far. */
   private Integer messageCount;
+
+  /** Excerpt of the newest message, shown as the second line of the session
+   *  list card. Kept denormalized so listing sessions never touches
+   *  chat_message. */
+  private String lastMessagePreview;
 }

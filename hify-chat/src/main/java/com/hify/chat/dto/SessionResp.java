@@ -17,6 +17,7 @@ public class SessionResp {
   private String title;
   private String status;
   private Integer messageCount;
+  private String lastMessagePreview;
   private LocalDateTime lastMessageAt;
   private LocalDateTime createdAt;
   private LocalDateTime updatedAt;
@@ -28,6 +29,7 @@ public class SessionResp {
     resp.setTitle(session.getTitle());
     resp.setStatus(session.getStatus());
     resp.setMessageCount(session.getMessageCount());
+    resp.setLastMessagePreview(session.getLastMessagePreview());
     resp.setLastMessageAt(session.getLastMessageAt());
     resp.setCreatedAt(session.getCreatedAt());
     resp.setUpdatedAt(session.getUpdatedAt());

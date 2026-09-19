@@ -30,9 +30,10 @@ public class ChatPersistenceServiceImpl implements ChatPersistenceService {
   public ChatSession createSession(Long agentId, String title) {
     ChatSession session = new ChatSession();
     session.setAgentId(agentId);
-    // No title yet when the caller gave none: it is derived from the first
-    // user message (see saveUserMessage).
-    session.setTitle(title == null || title.isBlank() ? null : title.strip());
+    // A caller-supplied title gets the same shape as one derived from the
+    // first message; when none is given the title stays null until that
+    // first message arrives (see saveUserMessage -> applyTitleIfAbsent).
+    session.setTitle(normalizeTitle(title));
     session.setStatus(ChatConstants.SESSION_STATUS_ACTIVE);
     session.setMessageCount(0);
     chatSessionMapper.insert(session);
@@ -62,6 +63,7 @@ public class ChatPersistenceServiceImpl implements ChatPersistenceService {
     chatMessageMapper.insert(message);
     touchSession(sessionId);
     applyTitleIfAbsent(sessionId, content);
+    updatePreview(sessionId, content);
     return message;
   }
 
@@ -83,8 +85,8 @@ public class ChatPersistenceServiceImpl implements ChatPersistenceService {
 
   @Override
   @Transactional
-  public void finishAssistantMessage(Long messageId, String content, String finishReason,
-      Integer promptTokens, Integer completionTokens) {
+  public void finishAssistantMessage(Long sessionId, Long messageId, String content,
+      String finishReason, Integer promptTokens, Integer completionTokens) {
     chatMessageMapper.update(null, Wrappers.<ChatMessage>lambdaUpdate()
         .eq(ChatMessage::getId, messageId)
         .eq(ChatMessage::getStatus, ChatConstants.MSG_STATUS_GENERATING)
@@ -94,17 +96,19 @@ public class ChatPersistenceServiceImpl implements ChatPersistenceService {
         .set(ChatMessage::getPromptTokens, promptTokens == null ? 0 : promptTokens)
         .set(ChatMessage::getCompletionTokens, completionTokens == null ? 0 : completionTokens)
         .set(ChatMessage::getUpdatedAt, LocalDateTime.now()));
+    updatePreview(sessionId, content);
   }
 
   @Override
   @Transactional
-  public void failAssistantMessage(Long messageId, String partialContent) {
+  public void failAssistantMessage(Long sessionId, Long messageId, String partialContent) {
     chatMessageMapper.update(null, Wrappers.<ChatMessage>lambdaUpdate()
         .eq(ChatMessage::getId, messageId)
         .eq(ChatMessage::getStatus, ChatConstants.MSG_STATUS_GENERATING)
         .set(ChatMessage::getContent, partialContent == null ? "" : partialContent)
         .set(ChatMessage::getStatus, ChatConstants.MSG_STATUS_FAILED)
         .set(ChatMessage::getUpdatedAt, LocalDateTime.now()));
+    updatePreview(sessionId, partialContent);
   }
 
   @Override
@@ -130,7 +134,7 @@ public class ChatPersistenceServiceImpl implements ChatPersistenceService {
     chatSessionMapper.update(null, Wrappers.<ChatSession>lambdaUpdate()
         .eq(ChatSession::getId, sessionId)
         .isNull(ChatSession::getTitle)
-        .set(ChatSession::getTitle, deriveTitle(content)));
+        .set(ChatSession::getTitle, normalizeTitle(content)));
   }
 
   /** Id of the newest message in the session, null for a brand-new session. */
@@ -152,14 +156,39 @@ public class ChatPersistenceServiceImpl implements ChatPersistenceService {
         .set(ChatSession::getUpdatedAt, LocalDateTime.now()));
   }
 
-  /** First line of the first user message, truncated (CLAUDE.md: title <= 128). */
-  private String deriveTitle(String firstUserContent) {
-    if (firstUserContent == null || firstUserContent.isBlank()) {
+  /**
+   * Reduce a title source to what the column should hold: first line only,
+   * trimmed, at most {@link ChatConstants#TITLE_MAX_LENGTH} characters.
+   *
+   * <p>Applied to BOTH user-supplied titles and ones derived from the first
+   * message, so the two paths cannot diverge — without this a caller could
+   * store a 128-char title while the console expects the 30-char shape.
+   */
+  private String normalizeTitle(String raw) {
+    return singleLine(raw, ChatConstants.TITLE_MAX_LENGTH);
+  }
+
+  /** First line only, trimmed, capped at {@code maxLength} characters. */
+  private String singleLine(String raw, int maxLength) {
+    if (raw == null || raw.isBlank()) {
       return null;
     }
-    String oneLine = firstUserContent.strip().split("\\R", 2)[0].strip();
-    return oneLine.length() <= ChatConstants.TITLE_MAX_LENGTH
-        ? oneLine
-        : oneLine.substring(0, ChatConstants.TITLE_MAX_LENGTH);
+    String oneLine = raw.strip().split("\\R", 2)[0].strip();
+    return oneLine.length() <= maxLength ? oneLine : oneLine.substring(0, maxLength);
+  }
+
+  /**
+   * Refresh the session-list excerpt. Blank content leaves the previous
+   * excerpt alone rather than blanking the card (e.g. a failed turn that
+   * produced no text).
+   */
+  private void updatePreview(Long sessionId, String content) {
+    String preview = singleLine(content, ChatConstants.PREVIEW_MAX_LENGTH);
+    if (preview == null) {
+      return;
+    }
+    chatSessionMapper.update(null, Wrappers.<ChatSession>lambdaUpdate()
+        .eq(ChatSession::getId, sessionId)
+        .set(ChatSession::getLastMessagePreview, preview));
   }
 }
