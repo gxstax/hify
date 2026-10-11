@@ -1,5 +1,7 @@
 package com.hify.agent.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.hify.common.entity.BaseEntity;
 import lombok.Getter;
@@ -22,6 +24,10 @@ public class Agent extends BaseEntity {
 
   /** Bound model, model_config.id (app-layer FK, provider module). */
   private Long modelConfigId;
+
+  /** Optional RAG knowledge base, knowledge_base.id (app-layer FK). */
+  @TableField(updateStrategy = FieldStrategy.ALWAYS)
+  private Long knowledgeBaseId;
 
   /** Sampling temperature; NULL = provider default. */
   private Double temperature;

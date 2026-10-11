@@ -1,0 +1,257 @@
+-- hify database schema (MySQL 8.x)
+--
+-- Conventions per CLAUDE.md:
+--   names lower_snake_case; PK `id` bigint auto-increment; created_at/updated_at
+--   datetime (auto-filled by the application, DB default as a fallback);
+--   logical delete `deleted` tinyint (0 = normal, 1 = deleted);
+--   charset utf8mb4; NO database-level foreign keys (maintained in the app layer).
+--
+-- Apply manually (assumes database `hify` exists; run the two commented lines once if not):
+--   CREATE DATABASE IF NOT EXISTS hify DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+--   USE hify;
+--   mysql -u root -p < hify-app/src/main/resources/db/schema.sql
+--
+-- The file is idempotent (IF NOT EXISTS); after altering a table manually,
+-- DROP it first or it will silently keep the old definition.
+
+-- ---------------------------------------------------------------------------
+-- provider: a model-provider access instance (one protocol + one credential set)
+-- auth_config structure depends on `type`:
+--   OPENAI / OPENAI_COMPATIBLE -> { "apiKey": "sk-..." }   (Bearer)
+--   ANTHROPIC                 -> { "apiKey": "sk-ant-..." } (x-api-key header)
+--   OLLAMA                    -> null (no auth)
+-- Future types may carry { clientId, clientSecret, tokenUrl, ... } etc.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS provider (
+  id         BIGINT        NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+  name       VARCHAR(100)  NOT NULL COMMENT '供应商名称，唯一',
+  type       VARCHAR(30)   NOT NULL COMMENT 'OPENAI / ANTHROPIC / DEEPSEEK / OLLAMA / OPENAI_COMPATIBLE',
+  base_url   VARCHAR(500)  NOT NULL COMMENT 'API 基础地址',
+  auth_config JSON         NULL COMMENT '鉴权配置，结构按 type 不同',
+  description VARCHAR(255) NULL COMMENT '备注',
+  enabled    TINYINT       NOT NULL DEFAULT 1 COMMENT '0=禁用 1=启用',
+  created_at DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
+  updated_at DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
+  deleted    TINYINT       NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_provider_name (name)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = '模型提供商';
+
+-- ---------------------------------------------------------------------------
+-- model_config: models exposed by one provider access instance (N:1)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS model_config (
+  id           BIGINT       NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+  provider_id  BIGINT       NOT NULL COMMENT '所属供应商 ID，provider.id（应用层外键）',
+  name         VARCHAR(100) NOT NULL COMMENT '展示名，如 GPT-4o',
+  model_id     VARCHAR(100) NOT NULL COMMENT '调用时传给 API 的值',
+  context_size INT          NULL COMMENT '上下文窗口大小（token 数）',
+  extra_params JSON         NULL COMMENT '模型级别扩展参数',
+  enabled      TINYINT      NOT NULL DEFAULT 1 COMMENT '0=禁用 1=启用',
+  created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
+  updated_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
+  deleted      TINYINT      NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
+  PRIMARY KEY (id),
+  KEY idx_model_config_provider_id (provider_id)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = '模型配置';
+
+-- ---------------------------------------------------------------------------
+-- provider_health: 1:1 probe results per provider. High write frequency, kept
+-- out of the provider row so it never invalidates the provider cache.
+-- No logical delete: one row per provider, upsert semantics.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS provider_health (
+  id             BIGINT       NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+  provider_id    BIGINT       NOT NULL COMMENT '供应商 ID，唯一',
+  status         VARCHAR(20)  NOT NULL DEFAULT 'UNKNOWN' COMMENT 'UP / DOWN / DEGRADED / UNKNOWN',
+  last_check_at  DATETIME     NULL COMMENT '最后探测时间',
+  last_success_at DATETIME    NULL COMMENT '最后成功时间',
+  fail_count     INT          NOT NULL DEFAULT 0 COMMENT '连续失败次数',
+  latency_ms     INT          NULL COMMENT '最近一次延迟 ms',
+  error_message  VARCHAR(500) NULL COMMENT '最近失败原因',
+  updated_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
+  PRIMARY KEY (id),
+  UNIQUE INDEX idx_provider_health_provider_id (provider_id)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = '供应商健康状态';
+
+-- ---------------------------------------------------------------------------
+-- agent: agent definition (model binding + system prompt; MCP tools via agent_tool)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS agent (
+  id                BIGINT        NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+  name              VARCHAR(128)  NOT NULL COMMENT 'Agent name shown in the console',
+  description       VARCHAR(512)  NULL COMMENT 'Short description',
+  system_prompt     TEXT          NULL COMMENT 'System prompt defining agent behavior',
+  model_config_id   BIGINT        NOT NULL COMMENT 'Bound model, model_config.id (app-layer FK)',
+  temperature       DOUBLE        NULL COMMENT 'Sampling temperature; NULL = provider default',
+  max_tokens        INT           NULL COMMENT 'Max output tokens; NULL = provider default',
+  max_context_turns INT           NOT NULL DEFAULT 10 COMMENT '保留最近几轮上下文',
+  enabled           TINYINT       NOT NULL DEFAULT 1,
+  knowledge_base_id BIGINT        DEFAULT NULL,
+  created_at        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
+  updated_at        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
+  deleted           TINYINT       NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
+  PRIMARY KEY (id),
+  KEY idx_agent_model_config_id (model_config_id)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Agent configurations';
+
+-- ---------------------------------------------------------------------------
+-- mcp_server: an MCP server exposing tools callable by agents
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS mcp_server (
+  id          BIGINT        NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+  name        VARCHAR(128)  NOT NULL COMMENT 'Server name',
+  description VARCHAR(255)  NULL COMMENT 'Short description',
+  transport   VARCHAR(16)   NOT NULL COMMENT 'Transport type: stdio | sse',
+  command     VARCHAR(255)  NULL COMMENT 'For stdio: command to launch',
+  args        JSON          NULL COMMENT 'For stdio: launch arguments as a JSON array',
+  url         VARCHAR(512)  NULL COMMENT 'For sse: MCP endpoint URL',
+  created_at  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
+  updated_at  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
+  deleted     TINYINT       NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_mcp_server_name (name)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'MCP servers';
+
+-- ---------------------------------------------------------------------------
+-- agent_tool: M:N binding between agents and MCP servers
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS agent_tool (
+  id            BIGINT    NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+  agent_id      BIGINT    NOT NULL COMMENT 'agent.id (app-layer FK)',
+  tool_id       BIGINT    NOT NULL COMMENT '关联 mcp_server.id',
+  created_at    DATETIME  NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
+  updated_at    DATETIME  NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
+  deleted       TINYINT   NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_agent_tool (agent_id, tool_id)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Agent to MCP server bindings';
+
+-- ---------------------------------------------------------------------------
+-- chat_session: one conversation with an agent
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS chat_session (
+  id              BIGINT       NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+  agent_id        BIGINT       NOT NULL COMMENT 'agent.id (app-layer FK)',
+  title           VARCHAR(128) NULL COMMENT 'Derived from the first user message',
+  status          VARCHAR(20)  NOT NULL DEFAULT 'ACTIVE' COMMENT 'ACTIVE / ARCHIVED',
+  last_message_at DATETIME     NULL COMMENT 'Last activity, for list ordering',
+  message_count   INT          NOT NULL DEFAULT 0 COMMENT 'Messages in the session',
+  last_message_preview VARCHAR(64) NULL COMMENT 'Excerpt of the newest message, for the session list',
+  created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
+  updated_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
+  deleted         TINYINT      NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
+  PRIMARY KEY (id),
+  KEY idx_chat_session_agent_id (agent_id),
+  KEY idx_chat_session_last_message_at (last_message_at)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Chat sessions';
+
+-- ---------------------------------------------------------------------------
+-- chat_message: a single message in a session (fastest growing table)
+--
+-- NO logical delete on purpose: rows are physically removed together with
+-- their session (session delete -> DELETE WHERE session_id). A `deleted`
+-- column would force `WHERE deleted = 0` onto every read of the hottest table
+-- and widen the (session_id, id) index. Precedent: provider_health.
+--
+-- status state machine (streaming writes a placeholder first):
+--   user      -> COMPLETED immediately
+--   assistant -> GENERATING, then COMPLETED (content + usage) or FAILED
+--                (content keeps whatever deltas were already produced)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS chat_message (
+  id                BIGINT      NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+  session_id        BIGINT      NOT NULL COMMENT 'chat_session.id (app-layer FK)',
+  parent_id         BIGINT      NULL COMMENT 'Message being replied to; NULL = first message',
+  role              VARCHAR(16) NOT NULL COMMENT 'user | assistant | system | tool',
+  content           LONGTEXT    NOT NULL COMMENT 'Message text (LONGTEXT: replies can be very long)',
+  status            VARCHAR(16) NOT NULL DEFAULT 'COMPLETED' COMMENT 'GENERATING / COMPLETED / FAILED',
+  finish_reason     VARCHAR(32) NULL COMMENT 'stop | length | tool_calls | cancelled | ...',
+  prompt_tokens     INT         NOT NULL DEFAULT 0 COMMENT 'Prompt tokens (0 when unreported)',
+  completion_tokens INT         NOT NULL DEFAULT 0 COMMENT 'Completion tokens (0 when unreported)',
+  meta              JSON        NULL COMMENT 'tool_calls / tool_call_id / RAG citations',
+  created_at        DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
+  updated_at        DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
+  PRIMARY KEY (id),
+  KEY idx_chat_message_session_id_id (session_id, id),
+  KEY idx_chat_message_parent_id (parent_id)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Chat messages';
+
+-- ---------------------------------------------------------------------------
+-- demo_item: CRUD scaffold demo (remove once real business entities land)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS demo_item (
+  id         BIGINT       NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+  name       VARCHAR(128) NOT NULL COMMENT 'Item name',
+  status     INT          NOT NULL COMMENT 'Item status (demo field)',
+  created_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
+  updated_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
+  deleted    TINYINT      NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
+  PRIMARY KEY (id)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Demo CRUD entity';
+
+-- ---------------------------------------------------------------------------
+-- knowledge_base: business metadata for a RAG knowledge base
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS knowledge_base (
+  id          BIGINT       NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+  name        VARCHAR(100) NOT NULL COMMENT 'Knowledge-base name',
+  description VARCHAR(500) NOT NULL DEFAULT '' COMMENT 'Description',
+  enabled     TINYINT      NOT NULL DEFAULT 1 COMMENT '0=disabled 1=enabled',
+  deleted     TINYINT      NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
+  updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
+  PRIMARY KEY (id)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'RAG knowledge bases';
+
+-- ---------------------------------------------------------------------------
+-- document: uploaded document metadata and processing state
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS document (
+  id                BIGINT       NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+  knowledge_base_id BIGINT       NOT NULL COMMENT 'knowledge_base.id (app-layer FK)',
+  name              VARCHAR(200) NOT NULL COMMENT 'Document display name',
+  file_type         VARCHAR(20)  NOT NULL COMMENT 'txt / pdf / md',
+  file_size         BIGINT       NOT NULL COMMENT 'File size in bytes',
+  status            VARCHAR(20)  NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING / PROCESSING / DONE / FAILED',
+  error_message     VARCHAR(500) NOT NULL DEFAULT '' COMMENT 'Latest processing error',
+  chunk_count       INT          NOT NULL DEFAULT 0 COMMENT 'Number of vector chunks',
+  deleted           TINYINT      NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
+  created_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
+  updated_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
+  PRIMARY KEY (id),
+  KEY idx_document_knowledge_base_id (knowledge_base_id)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Uploaded knowledge documents';

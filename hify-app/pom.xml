@@ -57,9 +57,13 @@
       <artifactId>lombok</artifactId>
       <scope>provided</scope>
     </dependency>
-    <!-- PostgreSQL driver: the primary datastore (versions managed by the
-         spring-boot-dependencies BOM) and the future home of pgvector for the
-         knowledge module. -->
+    <!-- MySQL stores all business data and is the primary application database. -->
+    <dependency>
+      <groupId>com.mysql</groupId>
+      <artifactId>mysql-connector-j</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <!-- PostgreSQL is dedicated to pgvector document chunks. -->
     <dependency>
       <groupId>org.postgresql</groupId>
       <artifactId>postgresql</artifactId>

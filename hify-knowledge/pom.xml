@@ -20,6 +20,17 @@
       <artifactId>hify-common</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <!-- Reject deletion while an active Agent still binds the knowledge base. -->
+    <dependency>
+      <groupId>com.hify</groupId>
+      <artifactId>hify-agent</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <scope>provided</scope>
+    </dependency>
     <!-- REST controllers -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -30,6 +41,10 @@
       <groupId>com.baomidou</groupId>
       <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
     </dependency>
-    <!-- NOTE: pgvector JDBC type support (version managed in parent) is added when RAG code lands -->
+    <!-- Direct SQL access to the dedicated PostgreSQL/pgvector data source. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-jdbc</artifactId>
+    </dependency>
   </dependencies>
 </project>

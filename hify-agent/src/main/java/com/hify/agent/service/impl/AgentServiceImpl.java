@@ -66,6 +66,7 @@ public class AgentServiceImpl implements AgentService {
     agent.setDescription(req.getDescription());
     agent.setSystemPrompt(req.getSystemPrompt());
     agent.setModelConfigId(req.getModelConfigId());
+    agent.setKnowledgeBaseId(req.getKnowledgeBaseId());
     agent.setTemperature(req.getTemperature());
     agent.setMaxTokens(req.getMaxTokens());
     agent.setMaxContextTurns(req.getMaxContextTurns() == null
@@ -162,6 +163,7 @@ public class AgentServiceImpl implements AgentService {
     update.setDescription(req.getDescription());
     update.setSystemPrompt(req.getSystemPrompt());
     update.setModelConfigId(req.getModelConfigId());
+    update.setKnowledgeBaseId(req.getKnowledgeBaseId());
     update.setTemperature(req.getTemperature());
     update.setMaxTokens(req.getMaxTokens());
     update.setMaxContextTurns(req.getMaxContextTurns());
@@ -195,6 +197,16 @@ public class AgentServiceImpl implements AgentService {
       agentToolMapper.insert(binding);
     }
     return toolIds;
+  }
+
+  @Override
+  public boolean existsByKnowledgeBaseId(Long knowledgeBaseId) {
+    if (knowledgeBaseId == null) {
+      return false;
+    }
+    Long count = agentMapper.selectCount(Wrappers.<Agent>lambdaQuery()
+        .eq(Agent::getKnowledgeBaseId, knowledgeBaseId));
+    return count != null && count > 0;
   }
 
   @Override

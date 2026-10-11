@@ -8,16 +8,22 @@ spring:
   application:
     name: hify
   datasource:
-    driver-class-name: org.postgresql.Driver
-    # stringtype=unspecified: PostgreSQL is strict about jsonb, while the JSON
-    # columns (auth_config / extra_params / meta / args) are written as plain
-    # strings by JacksonTypeHandler. Without this the inserts fail with
-    # "column is of type jsonb but expression is of type character varying".
-    url: jdbc:postgresql://${PG_HOST:localhost}:${PG_PORT:5432}/${PG_DATABASE:hify}?stringtype=unspecified
-    username: ${PG_USERNAME:postgres}
-    password: ${PG_PASSWORD:370828}
-    hikari:
-      maximum-pool-size: 10
+    mysql:
+      driver-class-name: com.mysql.cj.jdbc.Driver
+      url: jdbc:mysql://${MYSQL_HOST:localhost}:${MYSQL_PORT:3306}/${MYSQL_DATABASE:hify}?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC
+      username: ${MYSQL_USERNAME:root}
+      password: ${MYSQL_PASSWORD:gao5219999}
+      hikari:
+        pool-name: hify-mysql
+        maximum-pool-size: 10
+    pgvector:
+      driver-class-name: org.postgresql.Driver
+      url: jdbc:postgresql://${PG_HOST:localhost}:${PG_PORT:5432}/${PG_DATABASE:hify}
+      username: ${PG_USERNAME:postgres}
+      password: ${PG_PASSWORD:370828}
+      hikari:
+        pool-name: hify-pgvector
+        maximum-pool-size: 5
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -54,6 +60,8 @@ resilience4j:
 
 # Chat engine (hify-chat).
 hify:
+  knowledge:
+    vector-dimension: 1536
   chat:
     # SseEmitter timeout. Must exceed the 60s conversation budget so the
     # business timeout fires first and closes the stream cleanly; the container

@@ -19,6 +19,7 @@ public class AgentDetailResponse {
   private String systemPrompt;
 
   private Long modelConfigId;
+  private Long knowledgeBaseId;
   private String modelName;
   private String providerName;
 
@@ -40,6 +41,7 @@ public class AgentDetailResponse {
     resp.setDescription(agent.getDescription());
     resp.setSystemPrompt(agent.getSystemPrompt());
     resp.setModelConfigId(agent.getModelConfigId());
+    resp.setKnowledgeBaseId(agent.getKnowledgeBaseId());
     resp.setModelName(model == null ? null : model.getName());
     resp.setProviderName(model == null ? null : model.getProviderName());
     resp.setTemperature(agent.getTemperature());

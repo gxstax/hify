@@ -34,6 +34,9 @@ public interface AgentService {
   /** Replace the agent's tool bindings wholesale; returns the new tool ids. */
   List<Long> updateAgentTools(Long id, AgentToolBindReq req);
 
+  /** Whether an active agent still references the knowledge base. */
+  boolean existsByKnowledgeBaseId(Long knowledgeBaseId);
+
   /** Logical delete of the agent; its tool bindings are purged. */
   void deleteAgent(Long id);
 }

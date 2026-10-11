@@ -7,6 +7,7 @@ export interface AgentItem {
   name: string
   description?: string | null
   modelConfigId: number
+  knowledgeBaseId?: number | null
   modelName?: string | null
   providerName?: string | null
   temperature?: number | null
@@ -30,6 +31,7 @@ export interface AgentPayload {
   description?: string
   systemPrompt?: string
   modelConfigId: number
+  knowledgeBaseId?: number | null
   temperature?: number | null
   maxTokens?: number | null
   maxContextTurns?: number | null

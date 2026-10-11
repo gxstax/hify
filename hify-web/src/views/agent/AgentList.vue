@@ -38,6 +38,7 @@ type AgentForm = {
   description?: string
   systemPrompt?: string
   modelConfigId?: number | null
+  knowledgeBaseId?: number | null
   temperature?: number | null
   maxTokens?: number | null
   maxContextTurns?: number | null
@@ -57,6 +58,7 @@ const fetchPage = (query: PageQuery) => getAgentList(query.page, query.pageSize)
 const columns: TableColumn[] = [
   { label: '名称', prop: 'name', minWidth: 150, showOverflowTooltip: true },
   { label: '关联模型', prop: 'modelName', minWidth: 160, showOverflowTooltip: true },
+  { label: '知识库 ID', prop: 'knowledgeBaseId', width: 110 },
   { label: '工具数量', width: 90, slot: 'tools' },
   { label: 'Temperature', prop: 'temperature', width: 110 },
   { label: '状态', prop: 'enabled', width: 90, slot: 'status' },
@@ -143,6 +145,7 @@ async function openEdit(row: { id: number }) {
     description: detail.description ?? '',
     systemPrompt: detail.systemPrompt ?? '',
     modelConfigId: detail.modelConfigId,
+    knowledgeBaseId: detail.knowledgeBaseId,
     temperature: detail.temperature ?? DEFAULT_TEMPERATURE,
     maxTokens: detail.maxTokens,
     maxContextTurns: detail.maxContextTurns,
@@ -159,6 +162,7 @@ async function onSubmit(raw: Record<string, any>) {
     description: form.description || undefined,
     systemPrompt: form.systemPrompt || undefined,
     modelConfigId: form.modelConfigId as number,
+    knowledgeBaseId: form.knowledgeBaseId ?? null,
     temperature: form.temperature ?? DEFAULT_TEMPERATURE,
     maxTokens: form.maxTokens ?? null,
     maxContextTurns: form.maxContextTurns ?? null,
@@ -268,6 +272,15 @@ const removeItem = useConfirm(
               </p>
             </template>
           </el-select>
+        </el-form-item>
+        <el-form-item label="知识库 ID" prop="knowledgeBaseId">
+          <el-input-number
+            v-model="form.knowledgeBaseId"
+            :min="1"
+            :step="1"
+            placeholder="不绑定知识库"
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="System Prompt" prop="systemPrompt">
           <el-input

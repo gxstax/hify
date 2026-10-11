@@ -17,6 +17,7 @@ public class AgentListResponse {
   private String description;
 
   private Long modelConfigId;
+  private Long knowledgeBaseId;
   private String modelName;
   private String providerName;
 
@@ -37,6 +38,7 @@ public class AgentListResponse {
     resp.setName(agent.getName());
     resp.setDescription(agent.getDescription());
     resp.setModelConfigId(agent.getModelConfigId());
+    resp.setKnowledgeBaseId(agent.getKnowledgeBaseId());
     resp.setModelName(model == null ? null : model.getName());
     resp.setProviderName(model == null ? null : model.getProviderName());
     resp.setTemperature(agent.getTemperature());
