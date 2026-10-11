@@ -18,6 +18,7 @@ CREATE TABLE document_chunk (
 );
 
 CREATE INDEX idx_chunk_kb ON document_chunk (knowledge_base_id) WHERE deleted = 0;
+CREATE INDEX idx_chunk_document ON document_chunk (document_id, chunk_index) WHERE deleted = 0;
 
 -- The initial data volume is small, so retrieval uses exact cosine distance.
 -- Add an HNSW vector_cosine_ops index only after production measurements justify it.

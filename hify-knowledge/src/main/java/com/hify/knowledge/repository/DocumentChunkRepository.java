@@ -3,12 +3,12 @@ package com.hify.knowledge.repository;
 import com.hify.common.exception.BizException;
 import com.hify.common.exception.ErrorCode;
 import com.hify.common.handler.VectorTypeHandler;
+import com.hify.knowledge.config.KnowledgeProperties;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.StringJoiner;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,9 +30,9 @@ public class DocumentChunkRepository {
 
   public DocumentChunkRepository(
       @Qualifier("pgvectorJdbcTemplate") JdbcTemplate jdbcTemplate,
-      @Value("${hify.knowledge.vector-dimension}") int vectorDimension) {
+      KnowledgeProperties properties) {
     this.jdbcTemplate = jdbcTemplate;
-    this.vectorDimension = vectorDimension;
+    this.vectorDimension = properties.getVectorDimension();
   }
 
   /** Writes all chunks atomically within the PostgreSQL transaction manager. */
@@ -72,6 +72,40 @@ public class DocumentChunkRepository {
         WHERE knowledge_base_id = ?
           AND deleted = 0
         """, knowledgeBaseId);
+  }
+
+  /** Logically deletes all active chunks belonging to one document. */
+  @Transactional(transactionManager = "pgvectorTransactionManager")
+  public int logicalDeleteByDocumentId(Long documentId) {
+    if (documentId == null || documentId <= 0) {
+      throw parameterError("文档 ID 必须大于 0");
+    }
+    return jdbcTemplate.update("""
+        UPDATE document_chunk
+        SET deleted = 1
+        WHERE document_id = ?
+          AND deleted = 0
+        """, documentId);
+  }
+
+  /** Returns all active chunks of a document in their original order. */
+  public List<DocumentChunkRow> findByDocumentId(Long documentId) {
+    if (documentId == null || documentId <= 0) {
+      throw parameterError("文档 ID 必须大于 0");
+    }
+    return jdbcTemplate.query("""
+        SELECT id, document_id, chunk_index, content, token_count, created_at
+        FROM document_chunk
+        WHERE document_id = ?
+          AND deleted = 0
+        ORDER BY chunk_index ASC
+        """, (resultSet, rowNum) -> new DocumentChunkRow(
+        resultSet.getLong("id"),
+        resultSet.getLong("document_id"),
+        resultSet.getInt("chunk_index"),
+        resultSet.getString("content"),
+        resultSet.getInt("token_count"),
+        resultSet.getObject("created_at", java.time.OffsetDateTime.class)), documentId);
   }
 
   /** Returns the most similar chunks across the selected knowledge bases. */

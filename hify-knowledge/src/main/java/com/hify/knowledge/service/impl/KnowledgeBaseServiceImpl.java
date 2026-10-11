@@ -1,5 +1,6 @@
 package com.hify.knowledge.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.hify.agent.service.AgentService;
@@ -16,7 +17,10 @@ import com.hify.knowledge.mapper.DocumentMapper;
 import com.hify.knowledge.mapper.KnowledgeBaseMapper;
 import com.hify.knowledge.repository.DocumentChunkRepository;
 import com.hify.knowledge.service.KnowledgeBaseService;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -50,8 +54,12 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         .like(name != null && !name.isBlank(), KnowledgeBase::getName, name)
         .orderByDesc(KnowledgeBase::getId));
 
+    Map<Long, Long> documentCounts = mapDocumentCounts(mpPage.getRecords().stream()
+        .map(KnowledgeBase::getId)
+        .toList());
     List<KnowledgeBaseResponse> list = mpPage.getRecords().stream()
-        .map(KnowledgeBaseResponse::from)
+        .map(item -> KnowledgeBaseResponse.from(item,
+            documentCounts.getOrDefault(item.getId(), 0L)))
         .toList();
     return new PageResult<>(list, mpPage.getTotal(), (int) mpPage.getCurrent(),
         (int) mpPage.getSize());
@@ -59,7 +67,8 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
 
   @Override
   public KnowledgeBaseResponse getKnowledgeBase(Long id) {
-    return KnowledgeBaseResponse.from(requireKnowledgeBase(id));
+    KnowledgeBase knowledgeBase = requireKnowledgeBase(id);
+    return KnowledgeBaseResponse.from(knowledgeBase, documentCount(id));
   }
 
   @Override
@@ -71,7 +80,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     knowledgeBase.setDescription(normalizeDescription(req.getDescription()));
     knowledgeBase.setEnabled(req.getEnabled());
     knowledgeBaseMapper.updateById(knowledgeBase);
-    return KnowledgeBaseResponse.from(knowledgeBase);
+    return KnowledgeBaseResponse.from(knowledgeBase, documentCount(id));
   }
 
   @Override
@@ -89,6 +98,25 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     documentMapper.delete(Wrappers.<Document>lambdaQuery()
         .eq(Document::getKnowledgeBaseId, id));
     knowledgeBaseMapper.deleteById(id);
+  }
+
+  private long documentCount(Long knowledgeBaseId) {
+    return mapDocumentCounts(List.of(knowledgeBaseId)).getOrDefault(knowledgeBaseId, 0L);
+  }
+
+  private Map<Long, Long> mapDocumentCounts(Collection<Long> knowledgeBaseIds) {
+    if (knowledgeBaseIds == null || knowledgeBaseIds.isEmpty()) {
+      return Map.of();
+    }
+    List<Map<String, Object>> rows = documentMapper.selectMaps(
+        new QueryWrapper<Document>()
+            .select("knowledge_base_id", "COUNT(*) AS document_count")
+            .in("knowledge_base_id", knowledgeBaseIds)
+            .groupBy("knowledge_base_id"));
+    return rows.stream().collect(Collectors.toMap(
+        row -> ((Number) row.get("knowledge_base_id")).longValue(),
+        row -> ((Number) row.get("document_count")).longValue(),
+        (left, right) -> left));
   }
 
   private KnowledgeBase requireKnowledgeBase(Long id) {

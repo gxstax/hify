@@ -44,6 +44,8 @@
     <mybatis-plus.version>3.5.17</mybatis-plus.version>
     <resilience4j.version>2.4.0</resilience4j.version>
     <pgvector.version>0.1.6</pgvector.version>
+    <pdfbox.version>3.0.5</pdfbox.version>
+    <jtokkit.version>1.1.0</jtokkit.version>
     <okhttp.version>5.5.0</okhttp.version>
     <logstash-logback.version>9.0</logstash-logback.version>
   </properties>
@@ -71,6 +73,16 @@
         <groupId>com.pgvector</groupId>
         <artifactId>pgvector</artifactId>
         <version>${pgvector.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.pdfbox</groupId>
+        <artifactId>pdfbox</artifactId>
+        <version>${pdfbox.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.knuddels</groupId>
+        <artifactId>jtokkit</artifactId>
+        <version>${jtokkit.version}</version>
       </dependency>
       <!-- HTTP client for LLM streaming calls.
            OkHttp 5.x publishes a KMP metadata-only `okhttp` jar; plain Maven

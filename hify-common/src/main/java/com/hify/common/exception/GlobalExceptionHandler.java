@@ -4,6 +4,8 @@ import com.hify.common.dto.Result;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.validation.FieldError;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -37,6 +39,18 @@ public class GlobalExceptionHandler {
         .map(FieldError::getDefaultMessage)
         .orElse(ErrorCode.PARAM_ERROR.getMessage());
     return Result.fail(ErrorCode.PARAM_ERROR, message);
+  }
+
+  /** Required multipart file part was not provided. */
+  @ExceptionHandler(MissingServletRequestPartException.class)
+  public Result<Void> handleMissingMultipartPart(MissingServletRequestPartException e) {
+    return Result.fail(ErrorCode.PARAM_ERROR, "上传文件不能为空");
+  }
+
+  /** Multipart body exceeded the configured limit before controller validation. */
+  @ExceptionHandler(MaxUploadSizeExceededException.class)
+  public Result<Void> handleMaxUploadSize(MaxUploadSizeExceededException e) {
+    return Result.fail(ErrorCode.PARAM_ERROR, "上传文件不能超过 10MB");
   }
 
   /** Unexpected error: log the stack trace, never leak details to the client. */

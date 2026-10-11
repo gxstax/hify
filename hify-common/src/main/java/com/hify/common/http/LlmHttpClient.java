@@ -68,7 +68,12 @@ public class LlmHttpClient {
    * @throws LlmApiException classified per {@link LlmErrorType}
    */
   public String post(String url, Map<String, String> headers, String body) {
-    return execute("POST", url, headers, body, READ_TIMEOUT_POST);
+    return post(url, headers, body, READ_TIMEOUT_POST);
+  }
+
+  /** POST with a caller-controlled read timeout. */
+  public String post(String url, Map<String, String> headers, String body, Duration readTimeout) {
+    return execute("POST", url, headers, body, readTimeout);
   }
 
   /**

@@ -40,9 +40,9 @@ public class ThreadPoolConfig {
   @Bean
   public ThreadPoolTaskExecutor asyncExecutor() {
     ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-    executor.setCorePoolSize(5);
-    executor.setMaxPoolSize(20);
-    executor.setQueueCapacity(200);
+    executor.setCorePoolSize(2);
+    executor.setMaxPoolSize(4);
+    executor.setQueueCapacity(100);
     executor.setThreadNamePrefix("async-");
     return executor;
   }

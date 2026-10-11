@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.hify.common.exception.BizException;
 import com.hify.common.exception.ErrorCode;
 import com.hify.provider.dto.ModelConfigBrief;
+import com.hify.provider.dto.ModelInvocationConfig;
 import com.hify.provider.entity.ModelConfig;
 import com.hify.provider.entity.Provider;
 import com.hify.provider.mapper.ModelConfigMapper;
@@ -40,6 +41,37 @@ public class ModelConfigServiceImpl implements ModelConfigService {
           "模型所属供应商不可用: " + model.getName());
     }
     return ModelConfigBrief.of(model, provider);
+  }
+
+  @Override
+  public ModelInvocationConfig requireInvocationConfig(Long id) {
+    ModelConfig model = modelConfigMapper.selectById(id);
+    if (model == null) {
+      throw new BizException(ErrorCode.NOT_FOUND, "模型配置不存在: id=" + id);
+    }
+    if (!Boolean.TRUE.equals(model.getEnabled())) {
+      throw new BizException(ErrorCode.PARAM_ERROR, "模型已禁用: " + model.getName());
+    }
+    Provider provider = providerMapper.selectById(model.getProviderId());
+    if (provider == null || !Boolean.TRUE.equals(provider.getEnabled())) {
+      throw new BizException(ErrorCode.PARAM_ERROR,
+          "模型所属供应商不可用: " + model.getName());
+    }
+    if (isBlank(model.getModelId()) || isBlank(provider.getBaseUrl())) {
+      throw new BizException(ErrorCode.PARAM_ERROR, "模型调用配置不完整: " + model.getName());
+    }
+    Object apiKeyValue = provider.getAuthConfig() == null
+        ? null : provider.getAuthConfig().get("apiKey");
+    String apiKey = apiKeyValue instanceof String value ? value : null;
+    if (isBlank(apiKey)) {
+      throw new BizException(ErrorCode.PARAM_ERROR, "模型供应商未配置 API Key: " + provider.getName());
+    }
+    return new ModelInvocationConfig(model.getId(), model.getModelId(), provider.getType(),
+        provider.getBaseUrl(), apiKey);
+  }
+
+  private boolean isBlank(String value) {
+    return value == null || value.isBlank();
   }
 
   @Override

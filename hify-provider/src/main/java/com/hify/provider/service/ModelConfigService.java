@@ -1,6 +1,7 @@
 package com.hify.provider.service;
 
 import com.hify.provider.dto.ModelConfigBrief;
+import com.hify.provider.dto.ModelInvocationConfig;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -19,6 +20,9 @@ public interface ModelConfigService {
    *         disabled
    */
   ModelConfigBrief requireUsable(Long id);
+
+  /** Load enabled model/provider settings for an internal outbound invocation. */
+  ModelInvocationConfig requireInvocationConfig(Long id);
 
   /**
    * Batch-load briefs by id for display purposes (list/detail enrichment,

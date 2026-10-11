@@ -20,6 +20,11 @@
       <artifactId>hify-common</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <dependency>
+      <groupId>com.hify</groupId>
+      <artifactId>hify-provider</artifactId>
+      <version>${project.version}</version>
+    </dependency>
     <!-- Reject deletion while an active Agent still binds the knowledge base. -->
     <dependency>
       <groupId>com.hify</groupId>
@@ -40,6 +45,16 @@
     <dependency>
       <groupId>com.baomidou</groupId>
       <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+    </dependency>
+    <!-- Text extraction for uploaded PDF documents; OCR is intentionally out of scope. -->
+    <dependency>
+      <groupId>org.apache.pdfbox</groupId>
+      <artifactId>pdfbox</artifactId>
+    </dependency>
+    <!-- Exact cl100k_base token counting for deterministic document chunks. -->
+    <dependency>
+      <groupId>com.knuddels</groupId>
+      <artifactId>jtokkit</artifactId>
     </dependency>
     <!-- Direct SQL access to the dedicated PostgreSQL/pgvector data source. -->
     <dependency>

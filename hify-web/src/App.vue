@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { ChatDotRound, Expand, Fold, Setting, User } from '@element-plus/icons-vue'
+import { ChatDotRound, Collection, Expand, Fold, Setting, User } from '@element-plus/icons-vue'
 import { useMediaQuery } from '@/composables/useMediaQuery'
 
 const route = useRoute()
@@ -12,6 +12,9 @@ const collapsed = ref(false)
 const isNarrow = useMediaQuery('(max-width: 1199.98px)')
 /** Effective rail state: narrow viewport forces it regardless of manual state. */
 const asideCollapsed = computed(() => collapsed.value || isNarrow.value)
+const activeMenu = computed(() =>
+  route.path.startsWith('/knowledge-bases') ? '/knowledge-bases' : route.path,
+)
 
 /** Breadcrumb trail: fixed "首页" + every matched route that carries a title */
 const crumbs = computed(() =>
@@ -35,7 +38,7 @@ const crumbs = computed(() =>
       <!-- Nav -->
       <el-menu
         router
-        :default-active="route.path"
+        :default-active="activeMenu"
         :collapse="asideCollapsed"
         :collapse-transition="false"
         class="app-menu"
@@ -47,6 +50,10 @@ const crumbs = computed(() =>
         <el-menu-item index="/agents">
           <el-icon><User /></el-icon>
           <template #title>Agent 管理</template>
+        </el-menu-item>
+        <el-menu-item index="/knowledge-bases">
+          <el-icon><Collection /></el-icon>
+          <template #title>知识库管理</template>
         </el-menu-item>
         <el-menu-item index="/chat">
           <el-icon><ChatDotRound /></el-icon>
