@@ -166,17 +166,43 @@ public class ChatServiceImpl implements ChatService {
     return emitter;
   }
 
-  /** Agent prompt + temporary RAG context + cached window, oldest first. */
+  /** Agent prompt with optional RAG references, followed by the cached window. */
   private ChatRequest buildRequest(AgentDetailResponse agent, ModelConfigBrief model,
       List<ChatMessage> window, RagRetrievalResult ragResult) {
     ChatRequest request = new ChatRequest();
     request.setModel(model.getModelId());
-    List<ChatMessage> messages = new ArrayList<>(window.size() + 2);
-    if (agent.getSystemPrompt() != null && !agent.getSystemPrompt().isBlank()) {
-      messages.add(ChatMessage.system(agent.getSystemPrompt()));
+    List<ChatMessage> messages = new ArrayList<>(window.size() + 1);
+
+    String originalPrompt = agent.getSystemPrompt() == null ? "" : agent.getSystemPrompt().strip();
+    String systemPrompt = originalPrompt;
+    if (agent.getKnowledgeBaseId() != null && ragResult != null) {
+      StringBuilder prompt = new StringBuilder(originalPrompt);
+      if (!prompt.isEmpty()) {
+        prompt.append("\n\n");
+      }
+      prompt.append("请基于以下参考资料回答用户问题。\n")
+          .append("如果资料中没有相关信息，直接说\"我没有找到相关资料\"，不要编造。\n\n")
+          .append("【参考资料】\n");
+
+      String context = ragResult.context();
+      int contextStart = context.indexOf("<knowledge_context>");
+      int contextEnd = context.indexOf("</knowledge_context>");
+      if (contextStart >= 0 && contextEnd > contextStart) {
+        String references = context.substring(
+            contextStart + "<knowledge_context>".length(), contextEnd).strip();
+        String[] chunks = references.isEmpty() ? new String[0] : references.split("\\R\\R+");
+        for (int i = 0; i < chunks.length; i++) {
+          String chunk = chunks[i];
+          int contentStart = chunk.indexOf('\n');
+          String content = contentStart >= 0 ? chunk.substring(contentStart + 1).strip() : chunk;
+          prompt.append('[').append(i + 1).append("] ").append(content).append('\n');
+        }
+      }
+      systemPrompt = prompt.toString().stripTrailing();
     }
-    if (ragResult != null && !ragResult.context().isBlank()) {
-      messages.add(ChatMessage.system(ragResult.context()));
+
+    if (!systemPrompt.isBlank()) {
+      messages.add(ChatMessage.system(systemPrompt));
     }
     messages.addAll(window);
     request.setMessages(messages);

@@ -91,17 +91,20 @@ public class ChatPersistenceServiceImpl implements ChatPersistenceService {
   public void finishAssistantMessage(Long sessionId, Long messageId, String content,
       String finishReason, Integer promptTokens, Integer completionTokens,
       List<RagCitation> citations) {
-    chatMessageMapper.update(null, Wrappers.<ChatMessage>lambdaUpdate()
+    ChatMessage update = new ChatMessage();
+    update.setContent(content == null ? "" : content);
+    update.setStatus(ChatConstants.MSG_STATUS_COMPLETED);
+    update.setFinishReason(finishReason);
+    update.setPromptTokens(promptTokens == null ? 0 : promptTokens);
+    update.setCompletionTokens(completionTokens == null ? 0 : completionTokens);
+    if (citations != null && !citations.isEmpty()) {
+      update.setMeta(Map.of("citations", citations));
+    }
+    update.setUpdatedAt(LocalDateTime.now());
+
+    chatMessageMapper.update(update, Wrappers.<ChatMessage>lambdaUpdate()
         .eq(ChatMessage::getId, messageId)
-        .eq(ChatMessage::getStatus, ChatConstants.MSG_STATUS_GENERATING)
-        .set(ChatMessage::getContent, content == null ? "" : content)
-        .set(ChatMessage::getStatus, ChatConstants.MSG_STATUS_COMPLETED)
-        .set(ChatMessage::getFinishReason, finishReason)
-        .set(ChatMessage::getPromptTokens, promptTokens == null ? 0 : promptTokens)
-        .set(ChatMessage::getCompletionTokens, completionTokens == null ? 0 : completionTokens)
-        .set(ChatMessage::getMeta,
-            citations == null || citations.isEmpty() ? null : Map.of("citations", citations))
-        .set(ChatMessage::getUpdatedAt, LocalDateTime.now()));
+        .eq(ChatMessage::getStatus, ChatConstants.MSG_STATUS_GENERATING));
     updatePreview(sessionId, content);
   }
 
