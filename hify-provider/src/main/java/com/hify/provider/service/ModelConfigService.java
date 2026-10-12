@@ -24,6 +24,9 @@ public interface ModelConfigService {
   /** Load enabled model/provider settings for an internal outbound invocation. */
   ModelInvocationConfig requireInvocationConfig(Long id);
 
+  /** Insert remote model ids not yet configured for this provider. */
+  int syncDiscoveredModels(Long providerId, Collection<String> modelIds);
+
   /**
    * Batch-load briefs by id for display purposes (list/detail enrichment,
    * avoids N+1). Unlike {@link #requireUsable} it tolerates disabled models —

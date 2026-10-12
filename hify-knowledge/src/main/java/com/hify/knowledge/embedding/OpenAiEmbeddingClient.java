@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class OpenAiEmbeddingClient implements EmbeddingClient {
 
-  private static final int MAX_BATCH_SIZE = 100;
+  private static final int MAX_BATCH_SIZE = 20;
 
   private final LlmHttpClient httpClient;
   private final ObjectMapper objectMapper;
@@ -54,6 +54,7 @@ public class OpenAiEmbeddingClient implements EmbeddingClient {
     Map<String, Object> payload = new LinkedHashMap<>();
     payload.put("model", config.getModelId());
     payload.put("input", texts);
+    payload.putAll(config.getInvocationParams());
     String body;
     try {
       body = objectMapper.writeValueAsString(payload);

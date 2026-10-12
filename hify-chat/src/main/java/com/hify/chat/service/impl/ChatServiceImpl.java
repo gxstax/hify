@@ -26,6 +26,8 @@ import com.hify.common.exception.BizException;
 import com.hify.common.exception.ErrorCode;
 import com.hify.common.exception.LlmApiException;
 import com.hify.common.util.PageHelper;
+import com.hify.knowledge.dto.RagRetrievalResult;
+import com.hify.knowledge.service.RagService;
 import com.hify.provider.adapter.ChatMessage;
 import com.hify.provider.adapter.ChatRequest;
 import com.hify.provider.adapter.ChatResponse;
@@ -80,6 +82,7 @@ public class ChatServiceImpl implements ChatService {
   private final ModelConfigService modelConfigService;
   private final ProviderService providerService;
   private final ProviderAdapterFactory adapterFactory;
+  private final RagService ragService;
   private final ChatProperties chatProperties;
   private final ChatSessionMapper chatSessionMapper;
   private final ChatMessageMapper chatMessageMapper;
@@ -98,6 +101,7 @@ public class ChatServiceImpl implements ChatService {
       ModelConfigService modelConfigService,
       ProviderService providerService,
       ProviderAdapterFactory adapterFactory,
+      RagService ragService,
       ChatProperties chatProperties,
       ChatSessionMapper chatSessionMapper,
       ChatMessageMapper chatMessageMapper,
@@ -108,6 +112,7 @@ public class ChatServiceImpl implements ChatService {
     this.modelConfigService = modelConfigService;
     this.providerService = providerService;
     this.adapterFactory = adapterFactory;
+    this.ragService = ragService;
     this.chatProperties = chatProperties;
     this.chatSessionMapper = chatSessionMapper;
     this.chatMessageMapper = chatMessageMapper;
@@ -153,22 +158,25 @@ public class ChatServiceImpl implements ChatService {
     List<ChatMessage> window = chatContext.loadWindow(session.getId(), maxTurns);
 
     SseEmitter emitter = new SseEmitter(chatProperties.getSseTimeoutMs());
-    StreamTask task = new StreamTask(emitter, adapter, provider,
-        buildRequest(agent, model, window), session.getId(), assistantMessage.getId());
+    StreamTask task = new StreamTask(emitter, adapter, provider, agent, model, window,
+        content, session.getId(), assistantMessage.getId());
     emitter.onTimeout(task::onTimeout);
     emitter.onError(task::onError);
     llmExecutor.execute(task);
     return emitter;
   }
 
-  /** system prompt (from the agent, never cached) + the window, oldest first. */
+  /** Agent prompt + temporary RAG context + cached window, oldest first. */
   private ChatRequest buildRequest(AgentDetailResponse agent, ModelConfigBrief model,
-      List<ChatMessage> window) {
+      List<ChatMessage> window, RagRetrievalResult ragResult) {
     ChatRequest request = new ChatRequest();
     request.setModel(model.getModelId());
-    List<ChatMessage> messages = new ArrayList<>(window.size() + 1);
+    List<ChatMessage> messages = new ArrayList<>(window.size() + 2);
     if (agent.getSystemPrompt() != null && !agent.getSystemPrompt().isBlank()) {
       messages.add(ChatMessage.system(agent.getSystemPrompt()));
+    }
+    if (ragResult != null && !ragResult.context().isBlank()) {
+      messages.add(ChatMessage.system(ragResult.context()));
     }
     messages.addAll(window);
     request.setMessages(messages);
@@ -258,9 +266,13 @@ public class ChatServiceImpl implements ChatService {
     private final SseEmitter emitter;
     private final ProviderAdapter adapter;
     private final Provider provider;
-    private final ChatRequest request;
+    private final AgentDetailResponse agent;
+    private final ModelConfigBrief model;
+    private final List<ChatMessage> window;
+    private final String userContent;
     private final Long sessionId;
     private final Long assistantMessageId;
+    private RagRetrievalResult ragResult;
 
     /** Text produced so far; kept even when the stream fails midway. */
     private final StringBuilder accumulated = new StringBuilder();
@@ -269,11 +281,15 @@ public class ChatServiceImpl implements ChatService {
     private final AtomicBoolean cancelled = new AtomicBoolean(false);
 
     StreamTask(SseEmitter emitter, ProviderAdapter adapter, Provider provider,
-        ChatRequest request, Long sessionId, Long assistantMessageId) {
+        AgentDetailResponse agent, ModelConfigBrief model, List<ChatMessage> window,
+        String userContent, Long sessionId, Long assistantMessageId) {
       this.emitter = emitter;
       this.adapter = adapter;
       this.provider = provider;
-      this.request = request;
+      this.agent = agent;
+      this.model = model;
+      this.window = window;
+      this.userContent = userContent;
       this.sessionId = sessionId;
       this.assistantMessageId = assistantMessageId;
     }
@@ -289,6 +305,10 @@ public class ChatServiceImpl implements ChatService {
         } catch (IOException e) {
           throw new ClientDisconnectedException(e);
         }
+        if (agent.getKnowledgeBaseId() != null) {
+          ragResult = ragService.retrieve(agent.getKnowledgeBaseId(), userContent);
+        }
+        ChatRequest request = buildRequest(agent, model, window, ragResult);
         adapter.streamChat(provider, request, new ChatStreamCallback() {
           @Override
           public void onDelta(String content) {
@@ -327,7 +347,8 @@ public class ChatServiceImpl implements ChatService {
       // Persist before notifying: the DB is the source of truth and the client
       // may already be gone by the time the done event is written.
       chatPersistence.finishAssistantMessage(sessionId, assistantMessageId, full,
-          response.getFinishReason(), response.getPromptTokens(), response.getCompletionTokens());
+          response.getFinishReason(), response.getPromptTokens(), response.getCompletionTokens(),
+          ragResult == null ? List.of() : ragResult.citations());
       // Normalize empty tool lists to null: adapters hand back List.of() when
       // the model answered directly, and caching that puts Jackson's internal
       // ImmutableCollections$ListN type name into the Redis value.
@@ -336,7 +357,8 @@ public class ChatServiceImpl implements ChatService {
 
       try {
         sendEvent("done", new DonePayload(assistantMessageId, response.getFinishReason(),
-            response.getPromptTokens(), response.getCompletionTokens()));
+            response.getPromptTokens(), response.getCompletionTokens(),
+            ragResult == null ? List.of() : ragResult.citations()));
       } catch (Exception e) {
         log.debug("client gone before the done event, sessionId={}", sessionId);
       }

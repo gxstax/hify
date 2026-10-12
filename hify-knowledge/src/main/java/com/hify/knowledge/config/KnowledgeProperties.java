@@ -21,6 +21,7 @@ public class KnowledgeProperties {
   private Duration processingTimeout = Duration.ofMinutes(10);
   private int recoveryLimit = 100;
   private Embedding embedding = new Embedding();
+  private Rag rag = new Rag();
 
   @Getter
   @Setter
@@ -28,6 +29,14 @@ public class KnowledgeProperties {
 
     private Long modelConfigId;
     private Duration timeout = Duration.ofSeconds(30);
-    private int batchSize = 100;
+    private int batchSize = 20;
+  }
+
+  @Getter
+  @Setter
+  public static class Rag {
+
+    private int topK = 5;
+    private double minSimilarity = 0.5;
   }
 }

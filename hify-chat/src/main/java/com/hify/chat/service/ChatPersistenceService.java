@@ -2,6 +2,8 @@ package com.hify.chat.service;
 
 import com.hify.chat.entity.ChatMessage;
 import com.hify.chat.entity.ChatSession;
+import com.hify.knowledge.dto.RagCitation;
+import java.util.List;
 
 /**
  * Transactional writes of sessions/messages, split into short units.
@@ -54,7 +56,7 @@ public interface ChatPersistenceService {
    * @param sessionId needed to keep chat_session.last_message_preview in step
    */
   void finishAssistantMessage(Long sessionId, Long messageId, String content, String finishReason,
-      Integer promptTokens, Integer completionTokens);
+      Integer promptTokens, Integer completionTokens, List<RagCitation> citations);
 
   /**
    * Mark the placeholder FAILED, keeping whatever deltas were produced before

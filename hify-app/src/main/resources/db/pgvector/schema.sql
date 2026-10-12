@@ -11,7 +11,7 @@ CREATE TABLE document_chunk (
                                 document_id       BIGINT       NOT NULL,
                                 chunk_index       INT          NOT NULL,
                                 content           TEXT         NOT NULL,
-                                embedding         vector(1536) NOT NULL,   -- text-embedding-3-small
+                                embedding         vector(1536) NOT NULL,   -- qwen3.7-text-embedding (dimensions=1536)
                                 token_count       INT          NOT NULL DEFAULT 0,
                                 deleted           SMALLINT     NOT NULL DEFAULT 0,
                                 created_at        TIMESTAMPTZ  NOT NULL DEFAULT NOW()

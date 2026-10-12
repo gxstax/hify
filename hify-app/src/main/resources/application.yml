@@ -72,9 +72,12 @@ hify:
     processing-timeout: 10m
     recovery-limit: 100
     embedding:
-      model-config-id: ${EMBEDDING_MODEL_CONFIG_ID:2}
+      model-config-id: ${EMBEDDING_MODEL_CONFIG_ID:164}
       timeout: 30s
-      batch-size: 100
+      batch-size: 20
+    rag:
+      top-k: 5
+      min-similarity: 0.5
   chat:
     # SseEmitter timeout. Must exceed the 60s conversation budget so the
     # business timeout fires first and closes the stream cleanly; the container

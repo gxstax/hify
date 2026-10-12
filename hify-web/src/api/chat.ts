@@ -16,6 +16,15 @@ export interface SessionItem {
 }
 
 /** Message row (GET /v1/chat/sessions/{id}/messages). */
+export interface RagCitation {
+  chunkId: number
+  knowledgeBaseId: number
+  documentId: number
+  documentName: string
+  chunkIndex: number
+  similarity: number
+}
+
 export interface MessageItem {
   id: number
   sessionId: number
@@ -27,6 +36,7 @@ export interface MessageItem {
   finishReason?: string | null
   promptTokens: number
   completionTokens: number
+  meta?: { citations?: RagCitation[] } | null
   createdAt: string
 }
 
@@ -78,6 +88,7 @@ export interface DoneEvent {
   finishReason: string
   promptTokens: number
   completionTokens: number
+  citations: RagCitation[]
 }
 
 export interface ErrorEvent {

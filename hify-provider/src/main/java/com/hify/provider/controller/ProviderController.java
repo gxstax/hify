@@ -75,7 +75,7 @@ public class ProviderController {
   /** POST /api/v1/providers/{id}/test-connection */
   @PostMapping("/{id}/test-connection")
   public Result<ConnectionTestResult> testConnection(@PathVariable Long id) {
-    return Result.ok(providerService.testConnection(id));
+    return Result.ok(providerService.testConnectionAndSync(id));
   }
 
   // ------------------------------------------------------------------

@@ -11,6 +11,8 @@ export interface TableColumn {
   /** Minimum width for flexible columns (no width): el-table distributes the
    *  remaining space across min-width columns proportionally. */
   minWidth?: number | string
+  /** Pin the column while the table scrolls horizontally. */
+  fixed?: boolean | 'left' | 'right'
   /** Named scoped slot to render this column: <template #slotName="{ row }">. */
   slot?: string
   /** Truncate overflow with a hover tooltip (long text columns). */

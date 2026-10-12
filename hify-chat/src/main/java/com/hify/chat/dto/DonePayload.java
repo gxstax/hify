@@ -1,10 +1,13 @@
 package com.hify.chat.dto;
 
-/**
- * Payload of the terminal SSE {@code done} event: the reply is complete and
- * persisted. {@code finishReason} values mirror the provider
- * (stop / length / tool_calls) plus {@code cancelled} for a stop request.
- */
+import com.hify.knowledge.dto.RagCitation;
+import java.util.List;
+
+/** Terminal SSE event for a completed and persisted assistant reply. */
 public record DonePayload(Long messageId, String finishReason,
-    Integer promptTokens, Integer completionTokens) {
+    Integer promptTokens, Integer completionTokens, List<RagCitation> citations) {
+
+  public DonePayload {
+    citations = citations == null ? List.of() : List.copyOf(citations);
+  }
 }

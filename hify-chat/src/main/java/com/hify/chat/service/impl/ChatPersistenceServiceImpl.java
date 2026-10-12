@@ -9,7 +9,10 @@ import com.hify.chat.mapper.ChatSessionMapper;
 import com.hify.chat.service.ChatPersistenceService;
 import com.hify.common.exception.BizException;
 import com.hify.common.exception.ErrorCode;
+import com.hify.knowledge.dto.RagCitation;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -86,7 +89,8 @@ public class ChatPersistenceServiceImpl implements ChatPersistenceService {
   @Override
   @Transactional
   public void finishAssistantMessage(Long sessionId, Long messageId, String content,
-      String finishReason, Integer promptTokens, Integer completionTokens) {
+      String finishReason, Integer promptTokens, Integer completionTokens,
+      List<RagCitation> citations) {
     chatMessageMapper.update(null, Wrappers.<ChatMessage>lambdaUpdate()
         .eq(ChatMessage::getId, messageId)
         .eq(ChatMessage::getStatus, ChatConstants.MSG_STATUS_GENERATING)
@@ -95,6 +99,8 @@ public class ChatPersistenceServiceImpl implements ChatPersistenceService {
         .set(ChatMessage::getFinishReason, finishReason)
         .set(ChatMessage::getPromptTokens, promptTokens == null ? 0 : promptTokens)
         .set(ChatMessage::getCompletionTokens, completionTokens == null ? 0 : completionTokens)
+        .set(ChatMessage::getMeta,
+            citations == null || citations.isEmpty() ? null : Map.of("citations", citations))
         .set(ChatMessage::getUpdatedAt, LocalDateTime.now()));
     updatePreview(sessionId, content);
   }

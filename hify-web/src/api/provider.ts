@@ -75,6 +75,7 @@ export interface ConnectionTestResult {
   success: boolean
   latencyMs: number
   modelCount: number
+  syncedModelCount: number
   errorMessage?: string | null
 }
 

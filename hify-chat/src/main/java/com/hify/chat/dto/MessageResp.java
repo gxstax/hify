@@ -2,6 +2,7 @@ package com.hify.chat.dto;
 
 import com.hify.chat.entity.ChatMessage;
 import java.time.LocalDateTime;
+import java.util.Map;
 import lombok.Data;
 
 /**
@@ -21,6 +22,7 @@ public class MessageResp {
   private String finishReason;
   private Integer promptTokens;
   private Integer completionTokens;
+  private Map<String, Object> meta;
   private LocalDateTime createdAt;
 
   public static MessageResp of(ChatMessage message) {
@@ -34,6 +36,7 @@ public class MessageResp {
     resp.setFinishReason(message.getFinishReason());
     resp.setPromptTokens(message.getPromptTokens());
     resp.setCompletionTokens(message.getCompletionTokens());
+    resp.setMeta(message.getMeta());
     resp.setCreatedAt(message.getCreatedAt());
     return resp;
   }

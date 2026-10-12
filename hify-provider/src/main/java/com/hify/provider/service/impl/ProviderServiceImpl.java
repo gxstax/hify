@@ -9,6 +9,7 @@ import com.hify.common.exception.BizException;
 import com.hify.common.exception.ErrorCode;
 import com.hify.common.exception.LlmApiException;
 import com.hify.common.util.PageHelper;
+import com.hify.provider.adapter.ProviderAdapter;
 import com.hify.provider.adapter.ProviderAdapterFactory;
 import com.hify.provider.dto.ConnectionTestResult;
 import com.hify.provider.dto.ProviderDetail;
@@ -19,6 +20,7 @@ import com.hify.provider.entity.ProviderHealth;
 import com.hify.provider.mapper.ModelConfigMapper;
 import com.hify.provider.mapper.ProviderHealthMapper;
 import com.hify.provider.mapper.ProviderMapper;
+import com.hify.provider.service.ModelConfigService;
 import com.hify.provider.service.ProviderService;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +47,7 @@ public class ProviderServiceImpl implements ProviderService {
   private final ModelConfigMapper modelConfigMapper;
   private final ProviderHealthMapper providerHealthMapper;
   private final ProviderAdapterFactory adapterFactory;
+  private final ModelConfigService modelConfigService;
 
   @Override
   @CacheEvict(cacheNames = CacheNames.PROVIDER, allEntries = true)
@@ -167,6 +170,22 @@ public class ProviderServiceImpl implements ProviderService {
       return adapterFactory.getAdapter(provider.getType()).testConnection(provider);
     } catch (LlmApiException e) {
       // Transport/HTTP failures are a probe result, not an exception
+      return ConnectionTestResult.failure(System.currentTimeMillis() - start,
+          e.getErrorType() + ": " + e.getMessage());
+    }
+  }
+
+  @Override
+  public ConnectionTestResult testConnectionAndSync(Long id) {
+    Provider provider = requireProvider(id);
+    ProviderAdapter adapter = adapterFactory.getAdapter(provider.getType());
+    long start = System.currentTimeMillis();
+    try {
+      List<String> models = adapter.listModels(provider);
+      int syncedModelCount = modelConfigService.syncDiscoveredModels(id, models);
+      return ConnectionTestResult.success(System.currentTimeMillis() - start,
+          models.size(), syncedModelCount);
+    } catch (LlmApiException e) {
       return ConnectionTestResult.failure(System.currentTimeMillis() - start,
           e.getErrorType() + ": " + e.getMessage());
     }

@@ -123,7 +123,7 @@ public class DocumentProcessor {
     List<String> texts = chunks.stream().map(ChunkDTO::content).toList();
     Future<List<float[]>> future = llmExecutor.submit(
         () -> embeddingClient.embed(texts, invocationConfig));
-    int batchSize = Math.min(100, Math.max(1, properties.getEmbedding().getBatchSize()));
+    int batchSize = Math.min(20, Math.max(1, properties.getEmbedding().getBatchSize()));
     int batches = Math.max(1, (texts.size() + batchSize - 1) / batchSize);
     long timeoutMs = Math.multiplyExact(properties.getEmbedding().getTimeout().toMillis(), batches);
     List<float[]> embeddings;

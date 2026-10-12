@@ -79,7 +79,7 @@ const columns: TableColumn[] = [
   { label: '健康状态', width: 128, slot: 'health' },
   { label: '模型数', width: 84, slot: 'models' },
   { label: '创建时间', prop: 'createdAt', width: 160 },
-  { label: '操作', width: 168, slot: 'actions' },
+  { label: '操作', width: 200, fixed: 'right', slot: 'actions' },
 ]
 
 /* --- model popover --------------------------------------------------------- */
@@ -168,7 +168,13 @@ async function runTest(row: ProviderItem) {
   try {
     const result = await testConnection(row.id)
     if (result.success) {
-      notifySuccess(`连接成功：${result.modelCount} 个模型，${result.latencyMs}ms`)
+      notifySuccess(
+        `连接成功：远端 ${result.modelCount} 个模型，本次新增 ${result.syncedModelCount} 个，${result.latencyMs}ms`,
+      )
+      const nextModels = { ...modelsByProvider.value }
+      delete nextModels[row.id]
+      modelsByProvider.value = nextModels
+      await tableRef.value?.refresh()
     } else {
       notifyError(`连接失败：${result.errorMessage ?? '未知错误'}`)
     }
@@ -287,6 +293,10 @@ async function runTest(row: ProviderItem) {
   align-items: center;
   gap: 4px;
   flex-wrap: nowrap;
+}
+
+.cell-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
 }
 
 .health-latency {

@@ -37,4 +37,7 @@ public interface ProviderService {
    * {@code success = false}.
    */
   ConnectionTestResult testConnection(Long id);
+
+  /** Manual connectivity test that also imports previously unknown remote models. */
+  ConnectionTestResult testConnectionAndSync(Long id);
 }
