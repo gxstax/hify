@@ -255,3 +255,67 @@ CREATE TABLE IF NOT EXISTS document (
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci
   COMMENT = 'Uploaded knowledge documents';
+
+-- ---------------------------------------------------------------------------
+-- workflow: workflow definition metadata
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS workflow (
+  id          BIGINT       NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+  name        VARCHAR(100) NOT NULL COMMENT 'Workflow name',
+  description VARCHAR(500) NOT NULL DEFAULT '' COMMENT 'Description',
+  version     INT          NOT NULL DEFAULT 1 COMMENT 'Definition version',
+  enabled     TINYINT      NOT NULL DEFAULT 1 COMMENT '0=disabled 1=enabled',
+  deleted     TINYINT      NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
+  updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
+  PRIMARY KEY (id),
+  KEY idx_workflow_enabled (enabled)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Workflow definitions';
+
+-- ---------------------------------------------------------------------------
+-- workflow_node: nodes belonging to a workflow
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS workflow_node (
+  id             BIGINT       NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+  workflow_id    BIGINT       NOT NULL COMMENT 'workflow.id (app-layer FK)',
+  node_key       VARCHAR(64)  NOT NULL COMMENT 'Stable key inside one workflow',
+  name           VARCHAR(100) NOT NULL COMMENT 'Node display name',
+  node_type      VARCHAR(32)  NOT NULL COMMENT 'START / END / LLM / HTTP / CONDITION / KNOWLEDGE / TEXT',
+  config         JSON         NOT NULL COMMENT 'Type-specific node configuration',
+  config_version INT          NOT NULL DEFAULT 1 COMMENT 'Node config schema version',
+  sort_order     INT          NOT NULL DEFAULT 0 COMMENT 'Display order',
+  deleted        TINYINT      NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
+  created_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
+  updated_at     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
+  PRIMARY KEY (id),
+  KEY idx_workflow_node_workflow (workflow_id, deleted, sort_order, id),
+  KEY idx_workflow_node_lookup (workflow_id, deleted, node_key)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Workflow nodes';
+
+-- ---------------------------------------------------------------------------
+-- workflow_edge: connections between workflow nodes
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS workflow_edge (
+  id               BIGINT      NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+  workflow_id      BIGINT      NOT NULL COMMENT 'workflow.id (app-layer FK)',
+  source_node_key  VARCHAR(64) NOT NULL COMMENT 'Source node key',
+  target_node_key  VARCHAR(64) NOT NULL COMMENT 'Target node key',
+  source_port      VARCHAR(32) NOT NULL DEFAULT 'default' COMMENT 'Branch port',
+  priority         INT         NOT NULL DEFAULT 0 COMMENT 'Selection order',
+  deleted          TINYINT     NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
+  created_at       DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
+  updated_at       DATETIME    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
+  PRIMARY KEY (id),
+  KEY idx_workflow_edge_workflow (workflow_id, deleted, priority, id),
+  KEY idx_workflow_edge_source (workflow_id, deleted, source_node_key),
+  KEY idx_workflow_edge_target (workflow_id, deleted, target_node_key)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Workflow node connections';

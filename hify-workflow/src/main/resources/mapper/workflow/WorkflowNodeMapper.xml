@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hify.workflow.mapper.WorkflowNodeMapper">
+  <insert id="insertBatch">
+    INSERT INTO workflow_node (
+      workflow_id, node_key, name, node_type, config, config_version,
+      sort_order, deleted, created_at, updated_at
+    ) VALUES
+    <foreach collection="items" item="item" separator=",">
+      (
+        #{item.workflowId}, #{item.nodeKey}, #{item.name}, #{item.nodeType},
+        #{item.config,typeHandler=com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler},
+        #{item.configVersion}, #{item.sortOrder}, 0,
+        CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+      )
+    </foreach>
+  </insert>
+</mapper>
