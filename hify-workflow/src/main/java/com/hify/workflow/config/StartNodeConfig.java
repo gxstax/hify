@@ -6,7 +6,7 @@ import java.util.List;
 
 public record StartNodeConfig(
     @NotNull(message = "START 节点 inputs 不能为空")
-    List<@Valid InputDefinition> inputs) implements NodeConfig {
+    List<@Valid InputDefinition> inputs) implements NodeConfigDef {
 
   public StartNodeConfig {
     inputs = inputs == null ? null : List.copyOf(inputs);

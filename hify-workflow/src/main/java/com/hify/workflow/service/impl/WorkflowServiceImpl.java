@@ -7,7 +7,7 @@ import com.hify.common.dto.PageResult;
 import com.hify.common.exception.BizException;
 import com.hify.common.exception.ErrorCode;
 import com.hify.common.util.PageHelper;
-import com.hify.workflow.config.NodeConfig;
+import com.hify.workflow.config.NodeConfigDef;
 import com.hify.workflow.config.NodeConfigParser;
 import com.hify.workflow.constant.NodeType;
 import com.hify.workflow.dto.WorkflowCreateReq;
@@ -95,6 +95,20 @@ public class WorkflowServiceImpl implements WorkflowService {
         .eq(WorkflowNode::getWorkflowId, id));
     insertDefinition(id, definition);
     return loadDetail(id);
+  }
+
+  @Override
+  @Transactional(transactionManager = "mysqlTransactionManager", rollbackFor = Exception.class)
+  public void publishWorkflow(Long id) {
+    Workflow workflow = requireWorkflow(id);
+    if (Boolean.TRUE.equals(workflow.getEnabled())) {
+      return;
+    }
+
+    Workflow update = new Workflow();
+    update.setId(id);
+    update.setEnabled(Boolean.TRUE);
+    requireAffected(workflowMapper.updateById(update), 1, "发布工作流失败");
   }
 
   @Override
@@ -202,11 +216,11 @@ public class WorkflowServiceImpl implements WorkflowService {
   private WorkflowNodeResponse toNodeResponse(WorkflowNode node) {
     NodeType nodeType;
     try {
-      nodeType = NodeType.valueOf(node.getNodeType());
+      nodeType = NodeType.fromExternalValue(node.getNodeType());
     } catch (IllegalArgumentException | NullPointerException e) {
       throw new BizException(ErrorCode.SYSTEM_ERROR, "工作流节点类型数据异常");
     }
-    NodeConfig config = nodeConfigParser.parseStored(
+    NodeConfigDef config = nodeConfigParser.parseStored(
         nodeType, node.getConfigVersion(), node.getConfig(), node.getId());
     WorkflowNodeResponse response = new WorkflowNodeResponse();
     response.setId(node.getId());

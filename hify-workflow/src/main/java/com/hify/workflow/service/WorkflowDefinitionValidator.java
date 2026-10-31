@@ -2,7 +2,7 @@ package com.hify.workflow.service;
 
 import com.hify.common.exception.BizException;
 import com.hify.common.exception.ErrorCode;
-import com.hify.workflow.config.NodeConfig;
+import com.hify.workflow.config.NodeConfigDef;
 import com.hify.workflow.config.NodeConfigParser;
 import com.hify.workflow.constant.NodeType;
 import com.hify.workflow.dto.WorkflowDefinitionReq;
@@ -10,8 +10,10 @@ import com.hify.workflow.dto.WorkflowEdgeReq;
 import com.hify.workflow.dto.WorkflowNodeReq;
 import com.hify.workflow.service.model.ParsedWorkflowNode;
 import com.hify.workflow.service.model.ValidatedWorkflowDefinition;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -39,8 +41,8 @@ public class WorkflowDefinitionValidator {
           "nodeKey 在工作流内必须唯一: " + node.getNodeKey());
     }
     try {
-      NodeType nodeType = NodeType.valueOf(node.getNodeType());
-      NodeConfig config = nodeConfigParser.parse(
+      NodeType nodeType = NodeType.fromExternalValue(node.getNodeType());
+      NodeConfigDef config = nodeConfigParser.parse(
           nodeType, node.getConfigVersion(), node.getConfig());
       return new ParsedWorkflowNode(
           node.getNodeKey(), node.getName(), nodeType, config,
@@ -49,7 +51,7 @@ public class WorkflowDefinitionValidator {
       ErrorCode errorCode = e instanceof BizException bizException
           ? bizException.getErrorCode() : ErrorCode.PARAM_ERROR;
       throw new BizException(errorCode,
-          "节点 " + node.getNodeKey() + " 配置错误: " + e.getMessage());
+          "节点 " + node.getNodeKey() + " 配置错误: " + e.getMessage(), e);
     }
   }
 
@@ -72,6 +74,8 @@ public class WorkflowDefinitionValidator {
       List<ParsedWorkflowNode> nodes) {
     Set<String> startKeys = keysOfType(nodes, NodeType.START);
     Set<String> endKeys = keysOfType(nodes, NodeType.END);
+    Set<String> conditionKeys = keysOfType(nodes, NodeType.CONDITION);
+    Map<String, Set<String>> conditionPortsByNode = new HashMap<>();
     for (WorkflowEdgeReq edge : edges) {
       if (!nodeKeys.contains(edge.getSourceNodeKey())) {
         throw new BizException(ErrorCode.PARAM_ERROR,
@@ -86,6 +90,26 @@ public class WorkflowDefinitionValidator {
       }
       if (endKeys.contains(edge.getSourceNodeKey())) {
         throw new BizException(ErrorCode.PARAM_ERROR, "END 节点不能有出边");
+      }
+      if (conditionKeys.contains(edge.getSourceNodeKey())) {
+        String sourcePort = edge.getSourcePort();
+        if (!"true".equals(sourcePort) && !"false".equals(sourcePort)) {
+          throw new BizException(ErrorCode.PARAM_ERROR,
+              "CONDITION 节点出边端口只允许 true/false: " + edge.getSourceNodeKey());
+        }
+        Set<String> ports = conditionPortsByNode.computeIfAbsent(
+            edge.getSourceNodeKey(), ignored -> new HashSet<>());
+        if (!ports.add(sourcePort)) {
+          throw new BizException(ErrorCode.PARAM_ERROR,
+              "CONDITION 节点出边端口必须唯一: " + edge.getSourceNodeKey() + "." + sourcePort);
+        }
+      }
+    }
+    for (String conditionKey : conditionKeys) {
+      Set<String> ports = conditionPortsByNode.getOrDefault(conditionKey, Set.of());
+      if (!ports.contains("true") || !ports.contains("false")) {
+        throw new BizException(ErrorCode.PARAM_ERROR,
+            "CONDITION 节点必须同时存在 true/false 出边: " + conditionKey);
       }
     }
   }

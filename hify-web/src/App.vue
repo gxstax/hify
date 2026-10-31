@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { ChatDotRound, Collection, Expand, Fold, Setting, User } from '@element-plus/icons-vue'
+import { ChatDotRound, Collection, Connection, Expand, Fold, Setting, User } from '@element-plus/icons-vue'
 import { useMediaQuery } from '@/composables/useMediaQuery'
 
 const route = useRoute()
@@ -12,9 +12,15 @@ const collapsed = ref(false)
 const isNarrow = useMediaQuery('(max-width: 1199.98px)')
 /** Effective rail state: narrow viewport forces it regardless of manual state. */
 const asideCollapsed = computed(() => collapsed.value || isNarrow.value)
-const activeMenu = computed(() =>
-  route.path.startsWith('/knowledge-bases') ? '/knowledge-bases' : route.path,
-)
+const activeMenu = computed(() => {
+  if (route.path.startsWith('/knowledge-bases')) {
+    return '/knowledge-bases'
+  }
+  if (route.path.startsWith('/workflows')) {
+    return '/workflows'
+  }
+  return route.path
+})
 
 /** Breadcrumb trail: fixed "首页" + every matched route that carries a title */
 const crumbs = computed(() =>
@@ -50,6 +56,10 @@ const crumbs = computed(() =>
         <el-menu-item index="/agents">
           <el-icon><User /></el-icon>
           <template #title>Agent 管理</template>
+        </el-menu-item>
+        <el-menu-item index="/workflows">
+          <el-icon><Connection /></el-icon>
+          <template #title>工作流管理</template>
         </el-menu-item>
         <el-menu-item index="/knowledge-bases">
           <el-icon><Collection /></el-icon>

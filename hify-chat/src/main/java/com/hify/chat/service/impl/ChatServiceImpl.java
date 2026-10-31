@@ -38,6 +38,8 @@ import com.hify.provider.dto.ModelConfigBrief;
 import com.hify.provider.entity.Provider;
 import com.hify.provider.service.ModelConfigService;
 import com.hify.provider.service.ProviderService;
+import com.hify.workflow.engine.WorkflowEngine;
+import com.hify.workflow.engine.WorkflowExecutionResult;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -83,6 +85,7 @@ public class ChatServiceImpl implements ChatService {
   private final ProviderService providerService;
   private final ProviderAdapterFactory adapterFactory;
   private final RagService ragService;
+  private final WorkflowEngine workflowEngine;
   private final ChatProperties chatProperties;
   private final ChatSessionMapper chatSessionMapper;
   private final ChatMessageMapper chatMessageMapper;
@@ -102,6 +105,7 @@ public class ChatServiceImpl implements ChatService {
       ProviderService providerService,
       ProviderAdapterFactory adapterFactory,
       RagService ragService,
+      WorkflowEngine workflowEngine,
       ChatProperties chatProperties,
       ChatSessionMapper chatSessionMapper,
       ChatMessageMapper chatMessageMapper,
@@ -113,6 +117,7 @@ public class ChatServiceImpl implements ChatService {
     this.providerService = providerService;
     this.adapterFactory = adapterFactory;
     this.ragService = ragService;
+    this.workflowEngine = workflowEngine;
     this.chatProperties = chatProperties;
     this.chatSessionMapper = chatSessionMapper;
     this.chatMessageMapper = chatMessageMapper;
@@ -331,6 +336,12 @@ public class ChatServiceImpl implements ChatService {
         } catch (IOException e) {
           throw new ClientDisconnectedException(e);
         }
+        if (agent.getWorkflowId() != null) {
+          WorkflowExecutionResult result = workflowEngine.execute(
+              agent.getWorkflowId(), userContent);
+          completeWorkflow(result.output());
+          return;
+        }
         if (agent.getKnowledgeBaseId() != null) {
           ragResult = ragService.retrieve(agent.getKnowledgeBaseId(), userContent);
         }
@@ -363,9 +374,25 @@ public class ChatServiceImpl implements ChatService {
         });
       } catch (ClientDisconnectedException e) {
         onClientGone(e);
+      } catch (BizException e) {
+        onFailure(e);
       } catch (Exception e) {
         onFailure(e);
       }
+    }
+
+    private void completeWorkflow(String content) {
+      chatPersistence.finishAssistantMessage(sessionId, assistantMessageId, content,
+          "workflow", null, null, List.of());
+      chatContext.append(sessionId, ChatMessage.assistant(content, null));
+      try {
+        sendEvent("delta", new DeltaPayload(content));
+        sendEvent("done", new DonePayload(
+            assistantMessageId, "workflow", null, null, List.of()));
+      } catch (Exception e) {
+        log.debug("client gone before workflow events completed, sessionId={}", sessionId);
+      }
+      emitter.complete();
     }
 
     private void complete(ChatResponse response) {
@@ -403,7 +430,14 @@ public class ChatServiceImpl implements ChatService {
     /** Provider error, timeout or cancel: record the partial text, end the stream. */
     private void onFailure(Exception e) {
       log.warn("stream failed, sessionId={}, messageId={}", sessionId, assistantMessageId, e);
-      chatPersistence.failAssistantMessage(sessionId, assistantMessageId, accumulated.toString());
+      try {
+        chatPersistence.failAssistantMessage(
+            sessionId, assistantMessageId, accumulated.toString());
+      } catch (RuntimeException persistenceFailure) {
+        log.error("failed to persist assistant failure, sessionId={}, messageId={}",
+            sessionId, assistantMessageId, persistenceFailure);
+        e.addSuppressed(persistenceFailure);
+      }
 
       if (cancelled.get()) {
         // Timed out: nobody is listening any more, just release resources.
@@ -424,6 +458,10 @@ public class ChatServiceImpl implements ChatService {
     }
 
     private ErrorPayload errorPayload(Exception e) {
+      if (e instanceof BizException bizException) {
+        return new ErrorPayload(
+            bizException.getErrorCode().getCode(), bizException.getMessage());
+      }
       String message = e instanceof LlmApiException llm
           ? "模型调用失败: " + llm.getErrorType()
           : e.getMessage();

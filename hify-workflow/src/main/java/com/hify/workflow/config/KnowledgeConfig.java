@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
-public record KnowledgeNodeConfig(
+public record KnowledgeConfig(
     @NotNull(message = "KNOWLEDGE 节点 knowledgeBaseId 不能为空")
     @Positive(message = "knowledgeBaseId 必须大于 0")
     Long knowledgeBaseId,
@@ -23,5 +23,5 @@ public record KnowledgeNodeConfig(
     @Size(max = 64, message = "outputVariable 长度不能超过 64")
     @Pattern(regexp = "^[A-Za-z][A-Za-z0-9_]*$",
         message = "outputVariable 必须以字母开头，且只能包含字母、数字和下划线")
-    String outputVariable) implements NodeConfig {
+    String outputVariable) implements NodeConfigDef {
 }

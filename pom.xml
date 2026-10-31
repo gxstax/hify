@@ -22,7 +22,9 @@
   <!--
     Modules are listed in dependency order:
     hify-chat -> hify-agent / hify-provider / hify-workflow / hify-knowledge
-    hify-agent -> hify-mcp
+    hify-agent -> hify-mcp / hify-provider / hify-workflow / hify-knowledge
+    hify-workflow -> hify-provider / hify-knowledge
+    hify-knowledge -> hify-provider
     every business module -> hify-common
     hify-app (startup) -> every business module
   -->
@@ -30,9 +32,9 @@
     <module>hify-common</module>
     <module>hify-provider</module>
     <module>hify-mcp</module>
-    <module>hify-agent</module>
-    <module>hify-workflow</module>
     <module>hify-knowledge</module>
+    <module>hify-workflow</module>
+    <module>hify-agent</module>
     <module>hify-chat</module>
     <module>hify-app</module>
   </modules>

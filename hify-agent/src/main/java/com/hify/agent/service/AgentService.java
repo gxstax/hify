@@ -28,14 +28,14 @@ public interface AgentService {
    */
   PageResult<AgentListResponse> listAgents(int page, int pageSize, String keyword, Boolean enabled);
 
-  /** Full-field update of the basic info; model validation runs only when it changed. */
+  /**
+   * Full-field update of basic info; validates changed model bindings and supports
+   * binding or unbinding a workflow through {@code workflowId}.
+   */
   AgentDetailResponse updateAgent(Long id, AgentUpdateReq req);
 
   /** Replace the agent's tool bindings wholesale; returns the new tool ids. */
   List<Long> updateAgentTools(Long id, AgentToolBindReq req);
-
-  /** Whether an active agent still references the knowledge base. */
-  boolean existsByKnowledgeBaseId(Long knowledgeBaseId);
 
   /** Logical delete of the agent; its tool bindings are purged. */
   void deleteAgent(Long id);

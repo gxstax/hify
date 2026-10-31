@@ -52,6 +52,12 @@ public class WorkflowController {
     return Result.ok(workflowService.updateWorkflow(id, request));
   }
 
+  @PostMapping("/{id}/publish")
+  public Result<Void> publish(@PathVariable Long id) {
+    workflowService.publishWorkflow(id);
+    return Result.ok();
+  }
+
   @DeleteMapping("/{id}")
   public Result<Void> delete(@PathVariable Long id) {
     workflowService.deleteWorkflow(id);

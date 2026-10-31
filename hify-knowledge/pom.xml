@@ -25,12 +25,6 @@
       <artifactId>hify-provider</artifactId>
       <version>${project.version}</version>
     </dependency>
-    <!-- Reject deletion while an active Agent still binds the knowledge base. -->
-    <dependency>
-      <groupId>com.hify</groupId>
-      <artifactId>hify-agent</artifactId>
-      <version>${project.version}</version>
-    </dependency>
     <dependency>
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>

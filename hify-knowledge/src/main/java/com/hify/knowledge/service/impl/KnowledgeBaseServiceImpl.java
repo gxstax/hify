@@ -3,7 +3,6 @@ package com.hify.knowledge.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.hify.agent.service.AgentService;
 import com.hify.common.dto.PageResult;
 import com.hify.common.exception.BizException;
 import com.hify.common.exception.ErrorCode;
@@ -17,6 +16,7 @@ import com.hify.knowledge.mapper.DocumentMapper;
 import com.hify.knowledge.mapper.KnowledgeBaseMapper;
 import com.hify.knowledge.repository.DocumentChunkRepository;
 import com.hify.knowledge.service.KnowledgeBaseService;
+import com.hify.knowledge.service.KnowledgeReferenceChecker;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -33,7 +33,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
   private final KnowledgeBaseMapper knowledgeBaseMapper;
   private final DocumentMapper documentMapper;
   private final DocumentChunkRepository documentChunkRepository;
-  private final AgentService agentService;
+  private final List<KnowledgeReferenceChecker> referenceCheckers;
 
   @Override
   public KnowledgeBaseResponse createKnowledgeBase(KnowledgeBaseCreateReq req) {
@@ -87,7 +87,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
   @Transactional(transactionManager = "mysqlTransactionManager")
   public void deleteKnowledgeBase(Long id) {
     requireKnowledgeBase(id);
-    if (agentService.existsByKnowledgeBaseId(id)) {
+    if (referenceCheckers.stream().anyMatch(checker -> checker.isReferenced(id))) {
       throw new BizException(ErrorCode.PARAM_ERROR, "知识库已被 Agent 绑定，请先解除绑定");
     }
 

@@ -26,4 +26,10 @@ public class BizException extends RuntimeException {
     super(message);
     this.errorCode = errorCode;
   }
+
+  /** Custom message with the original failure preserved for diagnostics. */
+  public BizException(ErrorCode errorCode, String message, Throwable cause) {
+    super(message, cause);
+    this.errorCode = errorCode;
+  }
 }

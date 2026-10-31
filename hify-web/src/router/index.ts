@@ -21,6 +21,18 @@ const router = createRouter({
       meta: { title: 'Agent 管理' },
     },
     {
+      path: '/workflows',
+      name: 'workflows',
+      component: () => import('@/views/workflow/WorkflowList.vue'),
+      meta: { title: '工作流管理' },
+    },
+    {
+      path: '/workflows/create',
+      name: 'workflow-create',
+      component: () => import('@/views/workflow/WorkflowCreate.vue'),
+      meta: { title: '新建工作流' },
+    },
+    {
       path: '/knowledge-bases',
       name: 'knowledge-bases',
       component: () => import('@/views/knowledge/KnowledgeBaseList.vue'),

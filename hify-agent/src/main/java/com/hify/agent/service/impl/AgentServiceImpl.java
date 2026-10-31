@@ -20,6 +20,7 @@ import com.hify.common.exception.ErrorCode;
 import com.hify.common.util.PageHelper;
 import com.hify.provider.dto.ModelConfigBrief;
 import com.hify.provider.service.ModelConfigService;
+import com.hify.workflow.service.WorkflowService;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -49,16 +50,22 @@ public class AgentServiceImpl implements AgentService {
   private final AgentMapper agentMapper;
   private final AgentToolMapper agentToolMapper;
   private final ModelConfigService modelConfigService;
+  private final WorkflowService workflowService;
 
   @Override
-  @Transactional
+  @Transactional(
+      transactionManager = "mysqlTransactionManager",
+      rollbackFor = Exception.class)
   @CacheEvict(cacheNames = CacheNames.AGENT, allEntries = true)
   public AgentDetailResponse createAgent(AgentCreateReq req) {
     // 1. Name must be unique among live agents (MP filters deleted = 0)
     ensureNameFree(req.getName());
 
-    // 2. Model must exist and be usable (cross-module, Service interface only)
+    // 2. Model and optional workflow must exist (cross-module Service interfaces only)
     ModelConfigBrief model = modelConfigService.requireUsable(req.getModelConfigId());
+    if (req.getWorkflowId() != null) {
+      workflowService.getWorkflow(req.getWorkflowId());
+    }
 
     // 3. Insert the agent (id back-filled, timestamps auto-filled)
     Agent agent = new Agent();
@@ -67,6 +74,7 @@ public class AgentServiceImpl implements AgentService {
     agent.setSystemPrompt(req.getSystemPrompt());
     agent.setModelConfigId(req.getModelConfigId());
     agent.setKnowledgeBaseId(req.getKnowledgeBaseId());
+    agent.setWorkflowId(req.getWorkflowId());
     agent.setTemperature(req.getTemperature());
     agent.setMaxTokens(req.getMaxTokens());
     agent.setMaxContextTurns(req.getMaxContextTurns() == null
@@ -156,6 +164,9 @@ public class AgentServiceImpl implements AgentService {
       model = modelConfigService.mapByIds(List.of(req.getModelConfigId()))
           .get(req.getModelConfigId());
     }
+    if (req.getWorkflowId() != null) {
+      workflowService.getWorkflow(req.getWorkflowId());
+    }
 
     Agent update = new Agent();
     update.setId(id);
@@ -164,6 +175,7 @@ public class AgentServiceImpl implements AgentService {
     update.setSystemPrompt(req.getSystemPrompt());
     update.setModelConfigId(req.getModelConfigId());
     update.setKnowledgeBaseId(req.getKnowledgeBaseId());
+    update.setWorkflowId(req.getWorkflowId());
     update.setTemperature(req.getTemperature());
     update.setMaxTokens(req.getMaxTokens());
     update.setMaxContextTurns(req.getMaxContextTurns());
@@ -197,16 +209,6 @@ public class AgentServiceImpl implements AgentService {
       agentToolMapper.insert(binding);
     }
     return toolIds;
-  }
-
-  @Override
-  public boolean existsByKnowledgeBaseId(Long knowledgeBaseId) {
-    if (knowledgeBaseId == null) {
-      return false;
-    }
-    Long count = agentMapper.selectCount(Wrappers.<Agent>lambdaQuery()
-        .eq(Agent::getKnowledgeBaseId, knowledgeBaseId));
-    return count != null && count > 0;
   }
 
   @Override

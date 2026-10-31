@@ -25,6 +25,7 @@ import {
   type AgentPayload,
 } from '@/api/agent'
 import { listModelConfigs, type ModelConfigBrief } from '@/api/provider'
+import { getWorkflowList, type WorkflowItem } from '@/api/workflow'
 
 /** Selectable tool (MCP server). Empty until the MCP module ships a list API. */
 interface ToolOption {
@@ -39,6 +40,7 @@ type AgentForm = {
   systemPrompt?: string
   modelConfigId?: number | null
   knowledgeBaseId?: number | null
+  workflowId?: number | null
   temperature?: number | null
   maxTokens?: number | null
   maxContextTurns?: number | null
@@ -68,15 +70,21 @@ const columns: TableColumn[] = [
 
 /* --- model picker (grouped by provider) + tool options -------------------- */
 const modelOptions = ref<ModelConfigBrief[]>([])
+const workflowOptions = ref<WorkflowItem[]>([])
 // Tool options stay empty until the MCP module exposes its server list API;
 // bind the real source here afterwards (single change point).
 const toolOptions = ref<ToolOption[]>([])
 
 onMounted(async () => {
-  try {
-    modelOptions.value = await listModelConfigs()
-  } catch {
-    // interceptor toasted; the picker just stays empty
+  const [modelsResult, workflowsResult] = await Promise.allSettled([
+    listModelConfigs(),
+    getWorkflowList(1, 100, undefined, 'PUBLISHED'),
+  ])
+  if (modelsResult.status === 'fulfilled') {
+    modelOptions.value = modelsResult.value
+  }
+  if (workflowsResult.status === 'fulfilled') {
+    workflowOptions.value = workflowsResult.value.list
   }
 })
 
@@ -123,6 +131,7 @@ function openCreate() {
     enabled: true,
     maxContextTurns: 10,
     temperature: DEFAULT_TEMPERATURE,
+    workflowId: null,
     toolIds: [],
   })
 }
@@ -171,7 +180,11 @@ async function onSubmit(raw: Record<string, any>) {
   try {
     if (editingId.value == null) {
       // tools ride along in the create call (one transaction server-side)
-      await createAgent({ ...payload, toolIds: form.toolIds })
+      await createAgent({
+        ...payload,
+        workflowId: form.workflowId ?? null,
+        toolIds: form.toolIds,
+      })
       notifySuccess('新增成功')
     } else {
       await updateAgent(editingId.value, payload)
@@ -270,6 +283,25 @@ const removeItem = useConfirm(
               <p class="select-empty">
                 暂无可用模型，请先在「模型提供商管理」中添加并启用模型
               </p>
+            </template>
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="editingId == null" label="工作流" prop="workflowId">
+          <el-select
+            v-model="form.workflowId"
+            placeholder="不绑定工作流"
+            filterable
+            clearable
+            style="width: 100%"
+          >
+            <el-option
+              v-for="workflow in workflowOptions"
+              :key="workflow.id"
+              :label="workflow.name"
+              :value="workflow.id"
+            />
+            <template #empty>
+              <p class="select-empty">暂无已发布工作流</p>
             </template>
           </el-select>
         </el-form-item>

@@ -29,6 +29,10 @@ public class Agent extends BaseEntity {
   @TableField(updateStrategy = FieldStrategy.ALWAYS)
   private Long knowledgeBaseId;
 
+  /** Optional workflow, workflow.id (app-layer FK). */
+  @TableField(updateStrategy = FieldStrategy.ALWAYS)
+  private Long workflowId;
+
   /** Sampling temperature; NULL = provider default. */
   private Double temperature;
 

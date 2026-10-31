@@ -33,6 +33,18 @@
       <artifactId>hify-provider</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <!-- Cross-module workflow validation via WorkflowService -->
+    <dependency>
+      <groupId>com.hify</groupId>
+      <artifactId>hify-workflow</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <!-- Knowledge contracts and reference-check SPI implementation -->
+    <dependency>
+      <groupId>com.hify</groupId>
+      <artifactId>hify-knowledge</artifactId>
+      <version>${project.version}</version>
+    </dependency>
     <!-- Lombok for entities/DTOs (provided scope is not transitive) -->
     <dependency>
       <groupId>org.projectlombok</groupId>

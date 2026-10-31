@@ -8,6 +8,7 @@ export interface AgentItem {
   description?: string | null
   modelConfigId: number
   knowledgeBaseId?: number | null
+  workflowId?: number | null
   modelName?: string | null
   providerName?: string | null
   temperature?: number | null
@@ -25,7 +26,7 @@ export interface AgentDetail extends AgentItem {
   toolIds: number[]
 }
 
-/** Create / update payload of the basic info. */
+/** Update payload of the basic info. */
 export interface AgentPayload {
   name: string
   description?: string
@@ -36,7 +37,11 @@ export interface AgentPayload {
   maxTokens?: number | null
   maxContextTurns?: number | null
   enabled?: boolean
-  /** Create only: bound on creation inside the same backend transaction. */
+}
+
+/** Create payload including relations written in the same backend transaction. */
+export interface AgentCreatePayload extends AgentPayload {
+  workflowId?: number | null
   toolIds?: number[]
 }
 
@@ -48,7 +53,7 @@ export const getAgentList = (page: number, pageSize: number, keyword?: string, e
 export const getAgentDetail = (id: number) => get<AgentDetail>(`/v1/agents/${id}`)
 
 /** POST /v1/agents */
-export const createAgent = (payload: AgentPayload) => post<AgentDetail>('/v1/agents', payload)
+export const createAgent = (payload: AgentCreatePayload) => post<AgentDetail>('/v1/agents', payload)
 
 /** PUT /v1/agents/{id} — basic info only. */
 export const updateAgent = (id: number, payload: AgentPayload) =>

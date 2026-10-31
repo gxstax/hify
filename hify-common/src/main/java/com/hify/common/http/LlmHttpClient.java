@@ -86,6 +86,12 @@ public class LlmHttpClient {
     return execute("GET", url, headers, null, readTimeout);
   }
 
+  /** Execute a synchronous HTTP request with the shared timeout and error handling. */
+  public String request(String method, String url, Map<String, String> headers, String body,
+      Duration readTimeout) {
+    return execute(method, url, headers, body, readTimeout);
+  }
+
   /**
    * Stream a POST response line by line. Blocks until the stream ends, the
    * provider closes it, or an error occurs (thrown as {@link LlmApiException}).

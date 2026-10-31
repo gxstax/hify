@@ -31,6 +31,10 @@ public class AgentCreateReq {
   @Positive(message = "knowledgeBaseId 必须大于 0")
   private Long knowledgeBaseId;
 
+  /** Optional workflow executed by this Agent. */
+  @Positive(message = "workflowId 必须大于 0")
+  private Long workflowId;
+
   @DecimalMin(value = "0", message = "temperature 不能小于 0")
   @DecimalMax(value = "2", message = "temperature 不能大于 2")
   private Double temperature;

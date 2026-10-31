@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS agent (
   max_context_turns INT           NOT NULL DEFAULT 10 COMMENT '保留最近几轮上下文',
   enabled           TINYINT       NOT NULL DEFAULT 1,
   knowledge_base_id BIGINT        DEFAULT NULL,
+  workflow_id       BIGINT        DEFAULT NULL,
   created_at        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
   updated_at        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
   deleted           TINYINT       NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
@@ -283,7 +284,7 @@ CREATE TABLE IF NOT EXISTS workflow_node (
   workflow_id    BIGINT       NOT NULL COMMENT 'workflow.id (app-layer FK)',
   node_key       VARCHAR(64)  NOT NULL COMMENT 'Stable key inside one workflow',
   name           VARCHAR(100) NOT NULL COMMENT 'Node display name',
-  node_type      VARCHAR(32)  NOT NULL COMMENT 'START / END / LLM / HTTP / CONDITION / KNOWLEDGE / TEXT',
+  node_type      VARCHAR(32)  NOT NULL COMMENT 'START / END / LLM / API_CALL / CONDITION / KNOWLEDGE / TEXT',
   config         JSON         NOT NULL COMMENT 'Type-specific node configuration',
   config_version INT          NOT NULL DEFAULT 1 COMMENT 'Node config schema version',
   sort_order     INT          NOT NULL DEFAULT 0 COMMENT 'Display order',
@@ -319,3 +320,45 @@ CREATE TABLE IF NOT EXISTS workflow_edge (
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci
   COMMENT = 'Workflow node connections';
+
+-- ---------------------------------------------------------------------------
+-- workflow_run: one complete workflow execution (append-only runtime record)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS workflow_run (
+  id           BIGINT       NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+  workflow_id  BIGINT       NOT NULL COMMENT 'workflow.id (app-layer FK)',
+  status       VARCHAR(20)  NOT NULL COMMENT 'RUNNING / SUCCESS / FAILED',
+  input        TEXT         NULL COMMENT 'Workflow input snapshot',
+  output       TEXT         NULL COMMENT 'Workflow final output',
+  error        VARCHAR(500) NULL COMMENT 'Failure summary',
+  elapsed_ms   BIGINT       NULL COMMENT 'Execution duration in milliseconds',
+  created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Execution start time',
+  finished_at  DATETIME     NULL COMMENT 'Execution finish time',
+  PRIMARY KEY (id),
+  KEY idx_workflow_run_workflow (workflow_id, id),
+  KEY idx_workflow_run_status (status, created_at, id)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Workflow execution records';
+
+-- ---------------------------------------------------------------------------
+-- workflow_node_run: one node execution within a workflow run
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS workflow_node_run (
+  id              BIGINT       NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+  workflow_run_id BIGINT       NOT NULL COMMENT 'workflow_run.id (app-layer FK)',
+  node_key        VARCHAR(64)  NOT NULL COMMENT 'Executed workflow node key',
+  node_type       VARCHAR(32)  NOT NULL COMMENT 'Node type at execution time',
+  status          VARCHAR(20)  NOT NULL COMMENT 'RUNNING / SUCCESS / FAILED',
+  outputs         JSON         NULL COMMENT 'ExecutionContext snapshot after node execution',
+  error           VARCHAR(500) NULL COMMENT 'Failure summary',
+  elapsed_ms      BIGINT       NULL COMMENT 'Node execution duration in milliseconds',
+  created_at      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Execution start time',
+  finished_at     DATETIME     NULL COMMENT 'Execution finish time',
+  PRIMARY KEY (id),
+  KEY idx_workflow_node_run_run (workflow_run_id, id)
+) ENGINE = InnoDB
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_unicode_ci
+  COMMENT = 'Workflow node execution records';

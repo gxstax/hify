@@ -17,5 +17,7 @@ public interface WorkflowService {
 
   WorkflowDetailResponse updateWorkflow(Long id, WorkflowUpdateReq request);
 
+  void publishWorkflow(Long id);
+
   void deleteWorkflow(Long id);
 }

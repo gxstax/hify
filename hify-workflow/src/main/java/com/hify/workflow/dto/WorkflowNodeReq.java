@@ -22,8 +22,8 @@ public class WorkflowNodeReq {
   private String name;
 
   @NotBlank(message = "nodeType 不能为空")
-  @Pattern(regexp = "START|END|LLM|HTTP|CONDITION|KNOWLEDGE|TEXT",
-      message = "nodeType 只支持 START、END、LLM、HTTP、CONDITION、KNOWLEDGE、TEXT")
+  @Pattern(regexp = "START|END|LLM|API_CALL|HTTP|CONDITION|KNOWLEDGE|TEXT",
+      message = "nodeType 只支持 START、END、LLM、API_CALL、HTTP、CONDITION、KNOWLEDGE、TEXT")
   private String nodeType;
 
   @NotNull(message = "config 不能为空")

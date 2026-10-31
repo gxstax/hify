@@ -25,32 +25,33 @@ public class NodeConfigParser {
   private final ObjectMapper objectMapper;
   private final Validator validator;
 
-  public NodeConfig parse(NodeType nodeType, Integer configVersion, JsonNode config) {
+  public NodeConfigDef parse(NodeType nodeType, Integer configVersion, JsonNode config) {
     try {
       return parseInternal(nodeType, configVersion, config);
     } catch (BizException e) {
       throw e;
     } catch (IOException | IllegalArgumentException e) {
-      throw new BizException(ErrorCode.PARAM_ERROR, "节点配置格式错误: " + safeMessage(e));
+      throw new BizException(ErrorCode.PARAM_ERROR,
+          "节点配置格式错误: " + safeMessage(e), e);
     }
   }
 
-  public NodeConfig parseStored(NodeType nodeType, Integer configVersion, JsonNode config,
+  public NodeConfigDef parseStored(NodeType nodeType, Integer configVersion, JsonNode config,
       Long nodeId) {
     try {
       return parseInternal(nodeType, configVersion, config);
     } catch (Exception e) {
       log.error("Invalid stored workflow node config: nodeId={}, nodeType={}",
           nodeId, nodeType, e);
-      throw new BizException(ErrorCode.SYSTEM_ERROR, "工作流节点配置数据异常");
+      throw new BizException(ErrorCode.SYSTEM_ERROR, "工作流节点配置数据异常", e);
     }
   }
 
-  public JsonNode serialize(NodeConfig config) {
+  public JsonNode serialize(NodeConfigDef config) {
     return objectMapper.valueToTree(config);
   }
 
-  private NodeConfig parseInternal(NodeType nodeType, Integer configVersion, JsonNode config)
+  private NodeConfigDef parseInternal(NodeType nodeType, Integer configVersion, JsonNode config)
       throws IOException {
     if (nodeType == null) {
       throw new BizException(ErrorCode.PARAM_ERROR, "节点类型不能为空");
@@ -62,24 +63,24 @@ public class NodeConfigParser {
       throw new BizException(ErrorCode.PARAM_ERROR, "节点 config 必须是 JSON 对象");
     }
 
-    Class<? extends NodeConfig> configType = switch (nodeType) {
+    Class<? extends NodeConfigDef> configType = switch (nodeType) {
       case START -> StartNodeConfig.class;
       case END -> EndNodeConfig.class;
       case LLM -> LlmNodeConfig.class;
-      case HTTP -> HttpNodeConfig.class;
+      case API_CALL -> ApiCallConfig.class;
       case CONDITION -> ConditionNodeConfig.class;
-      case KNOWLEDGE -> KnowledgeNodeConfig.class;
+      case KNOWLEDGE -> KnowledgeConfig.class;
       case TEXT -> TextNodeConfig.class;
     };
-    NodeConfig parsed = objectMapper.readerFor(configType)
+    NodeConfigDef parsed = objectMapper.readerFor(configType)
         .with(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
         .readValue(config);
     validate(parsed);
     return parsed;
   }
 
-  private void validate(NodeConfig config) {
-    Set<ConstraintViolation<NodeConfig>> violations = validator.validate(config);
+  private void validate(NodeConfigDef config) {
+    Set<ConstraintViolation<NodeConfigDef>> violations = validator.validate(config);
     if (violations.isEmpty()) {
       return;
     }
