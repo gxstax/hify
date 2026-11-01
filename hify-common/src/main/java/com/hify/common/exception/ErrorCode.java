@@ -23,7 +23,16 @@ public enum ErrorCode {
   NOT_FOUND(1002, "资源不存在"),
 
   /** Unexpected server-side failure. */
-  SYSTEM_ERROR(1999, "系统内部错误");
+  SYSTEM_ERROR(1999, "系统内部错误"),
+
+  MCP_SERVER_NOT_FOUND(5000, "MCP Server 不存在"),
+  MCP_SERVER_NAME_DUPLICATE(5001, "MCP Server 名称已存在"),
+  MCP_ENDPOINT_INVALID(5002, "MCP endpoint 不合法"),
+  MCP_SERVER_DISABLED(5003, "MCP Server 已禁用"),
+  MCP_SERVER_CONNECTION_FAILED(5004, "MCP Server 连接失败"),
+  MCP_TOOL_NOT_FOUND(5005, "MCP 工具不存在"),
+  MCP_TOOL_CALL_FAILED(5006, "MCP 工具调用失败"),
+  MCP_SERVER_IN_USE(5007, "MCP Server 正被 Agent 使用");
 
   private final int code;
 

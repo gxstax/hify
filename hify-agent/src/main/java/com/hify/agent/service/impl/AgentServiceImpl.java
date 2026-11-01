@@ -18,6 +18,7 @@ import com.hify.common.dto.PageResult;
 import com.hify.common.exception.BizException;
 import com.hify.common.exception.ErrorCode;
 import com.hify.common.util.PageHelper;
+import com.hify.mcp.service.McpToolService;
 import com.hify.provider.dto.ModelConfigBrief;
 import com.hify.provider.service.ModelConfigService;
 import com.hify.workflow.service.WorkflowService;
@@ -46,11 +47,13 @@ public class AgentServiceImpl implements AgentService {
 
   /** Context turns kept when the request omits the value (matches the DB default). */
   private static final int DEFAULT_MAX_CONTEXT_TURNS = 10;
+  private static final int MAX_TOOL_COUNT = 10;
 
   private final AgentMapper agentMapper;
   private final AgentToolMapper agentToolMapper;
   private final ModelConfigService modelConfigService;
   private final WorkflowService workflowService;
+  private final McpToolService mcpToolService;
 
   @Override
   @Transactional(
@@ -66,6 +69,8 @@ public class AgentServiceImpl implements AgentService {
     if (req.getWorkflowId() != null) {
       workflowService.getWorkflow(req.getWorkflowId());
     }
+    List<Long> toolIds = normalizeToolIds(req.getToolIds());
+    mcpToolService.requireUsableTools(toolIds);
 
     // 3. Insert the agent (id back-filled, timestamps auto-filled)
     Agent agent = new Agent();
@@ -82,10 +87,7 @@ public class AgentServiceImpl implements AgentService {
     agent.setEnabled(Boolean.TRUE);
     agentMapper.insert(agent);
 
-    // 4. Bind tools in the same transaction. Note: tool ids are stored as-is;
-    // existence validation needs the MCP module (not built yet) — add
-    // mcpServerService.requireExists(...) here once it lands.
-    List<Long> toolIds = normalizeToolIds(req.getToolIds());
+    // 4. Bind validated MCP tools in the same transaction.
     for (Long toolId : toolIds) {
       AgentTool binding = new AgentTool();
       binding.setAgentId(agent.getId());
@@ -196,6 +198,7 @@ public class AgentServiceImpl implements AgentService {
   public List<Long> updateAgentTools(Long id, AgentToolBindReq req) {
     requireAgent(id);
     List<Long> toolIds = normalizeToolIds(req.getToolIds());
+    mcpToolService.requireUsableTools(toolIds);
 
     // Full replacement: purge old bindings physically (a logical delete would
     // keep uk_agent_tool occupied and break re-binding the same tool), then
@@ -250,7 +253,11 @@ public class AgentServiceImpl implements AgentService {
 
   /** Collapse nulls/duplicates into a stable tool id list. */
   private List<Long> normalizeToolIds(List<Long> toolIds) {
-    return toolIds == null ? List.of()
+    List<Long> normalized = toolIds == null ? List.of()
         : toolIds.stream().filter(Objects::nonNull).distinct().toList();
+    if (normalized.size() > MAX_TOOL_COUNT) {
+      throw new BizException(ErrorCode.PARAM_ERROR, "一个 Agent 最多绑定 10 个工具");
+    }
+    return normalized;
   }
 }

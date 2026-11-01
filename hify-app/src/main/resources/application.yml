@@ -78,6 +78,9 @@ hify:
     rag:
       top-k: 5
       min-similarity: 0.5
+  mcp:
+    connect-timeout: 10s
+    request-timeout: 60s
   chat:
     # SseEmitter timeout. Must exceed the 60s conversation budget so the
     # business timeout fires first and closes the stream cleanly; the container

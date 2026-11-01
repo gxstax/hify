@@ -3,6 +3,8 @@ package com.hify.chat.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hify.agent.dto.AgentDetailResponse;
 import com.hify.agent.service.AgentService;
 import com.hify.chat.config.ChatProperties;
@@ -28,12 +30,17 @@ import com.hify.common.exception.LlmApiException;
 import com.hify.common.util.PageHelper;
 import com.hify.knowledge.dto.RagRetrievalResult;
 import com.hify.knowledge.service.RagService;
+import com.hify.mcp.dto.McpToolResponse;
+import com.hify.mcp.service.McpClientService;
+import com.hify.mcp.service.McpToolService;
 import com.hify.provider.adapter.ChatMessage;
 import com.hify.provider.adapter.ChatRequest;
 import com.hify.provider.adapter.ChatResponse;
 import com.hify.provider.adapter.ChatStreamCallback;
 import com.hify.provider.adapter.ProviderAdapter;
 import com.hify.provider.adapter.ProviderAdapterFactory;
+import com.hify.provider.adapter.ToolCall;
+import com.hify.provider.adapter.ToolSpec;
 import com.hify.provider.dto.ModelConfigBrief;
 import com.hify.provider.entity.Provider;
 import com.hify.provider.service.ModelConfigService;
@@ -43,7 +50,9 @@ import com.hify.workflow.engine.WorkflowExecutionResult;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -86,6 +95,9 @@ public class ChatServiceImpl implements ChatService {
   private final ProviderAdapterFactory adapterFactory;
   private final RagService ragService;
   private final WorkflowEngine workflowEngine;
+  private final McpToolService mcpToolService;
+  private final McpClientService mcpClientService;
+  private final ObjectMapper objectMapper;
   private final ChatProperties chatProperties;
   private final ChatSessionMapper chatSessionMapper;
   private final ChatMessageMapper chatMessageMapper;
@@ -106,6 +118,9 @@ public class ChatServiceImpl implements ChatService {
       ProviderAdapterFactory adapterFactory,
       RagService ragService,
       WorkflowEngine workflowEngine,
+      McpToolService mcpToolService,
+      McpClientService mcpClientService,
+      ObjectMapper objectMapper,
       ChatProperties chatProperties,
       ChatSessionMapper chatSessionMapper,
       ChatMessageMapper chatMessageMapper,
@@ -118,6 +133,9 @@ public class ChatServiceImpl implements ChatService {
     this.adapterFactory = adapterFactory;
     this.ragService = ragService;
     this.workflowEngine = workflowEngine;
+    this.mcpToolService = mcpToolService;
+    this.mcpClientService = mcpClientService;
+    this.objectMapper = objectMapper;
     this.chatProperties = chatProperties;
     this.chatSessionMapper = chatSessionMapper;
     this.chatMessageMapper = chatMessageMapper;
@@ -173,7 +191,7 @@ public class ChatServiceImpl implements ChatService {
 
   /** Agent prompt with optional RAG references, followed by the cached window. */
   private ChatRequest buildRequest(AgentDetailResponse agent, ModelConfigBrief model,
-      List<ChatMessage> window, RagRetrievalResult ragResult) {
+      List<ChatMessage> window, RagRetrievalResult ragResult, List<McpToolResponse> tools) {
     ChatRequest request = new ChatRequest();
     request.setModel(model.getModelId());
     List<ChatMessage> messages = new ArrayList<>(window.size() + 1);
@@ -213,6 +231,20 @@ public class ChatServiceImpl implements ChatService {
     request.setMessages(messages);
     request.setTemperature(agent.getTemperature());
     request.setMaxTokens(agent.getMaxTokens());
+    if (tools != null && !tools.isEmpty()) {
+      long uniqueNames = tools.stream().map(McpToolResponse::name).distinct().count();
+      if (uniqueNames != tools.size()) {
+        throw new BizException(ErrorCode.PARAM_ERROR, "Agent 绑定的 MCP 工具名称重复");
+      }
+      List<ToolSpec> toolSpecs = tools.stream().map(tool -> {
+        ToolSpec spec = new ToolSpec();
+        spec.setName(tool.name());
+        spec.setDescription(tool.description());
+        spec.setParameters(tool.inputSchema());
+        return spec;
+      }).toList();
+      request.setTools(toolSpecs);
+    }
     return request;
   }
 
@@ -345,33 +377,10 @@ public class ChatServiceImpl implements ChatService {
         if (agent.getKnowledgeBaseId() != null) {
           ragResult = ragService.retrieve(agent.getKnowledgeBaseId(), userContent);
         }
-        ChatRequest request = buildRequest(agent, model, window, ragResult);
-        adapter.streamChat(provider, request, new ChatStreamCallback() {
-          @Override
-          public void onDelta(String content) {
-            if (cancelled.get()) {
-              // Emitter timed out: stop producing and abort the upstream call.
-              throw new StreamCancelledException("emitter timed out");
-            }
-            accumulated.append(content);
-            try {
-              sendEvent("delta", new DeltaPayload(content));
-            } catch (IOException e) {
-              // Client is gone. Propagating aborts the upstream LLM call (see
-              // ClientDisconnectedException) instead of paying for tokens
-              // nobody will read.
-              throw new ClientDisconnectedException(e);
-            } catch (IllegalStateException e) {
-              // Emitter already completed by the container (timeout race).
-              throw new StreamCancelledException("emitter already completed", e);
-            }
-          }
-
-          @Override
-          public void onComplete(ChatResponse response) {
-            complete(response);
-          }
-        });
+        List<McpToolResponse> tools = agent.getToolIds() == null || agent.getToolIds().isEmpty()
+            ? List.of() : mcpToolService.listUsableTools(agent.getToolIds());
+        ChatRequest request = buildRequest(agent, model, window, ragResult, tools);
+        streamFirst(request, tools);
       } catch (ClientDisconnectedException e) {
         onClientGone(e);
       } catch (BizException e) {
@@ -379,6 +388,115 @@ public class ChatServiceImpl implements ChatService {
       } catch (Exception e) {
         onFailure(e);
       }
+    }
+
+    private void streamFirst(ChatRequest request, List<McpToolResponse> tools) {
+      adapter.streamChat(provider, request, new ChatStreamCallback() {
+        @Override
+        public void onDelta(String content) {
+          emitDelta(content);
+        }
+
+        @Override
+        public void onComplete(ChatResponse response) {
+          if (tools.isEmpty() || !response.hasToolCalls()) {
+            complete(response);
+            return;
+          }
+          ChatRequest followUp = buildToolFollowUp(request, response, tools);
+          streamFinal(followUp, response);
+        }
+      });
+    }
+
+    private void streamFinal(ChatRequest request, ChatResponse firstResponse) {
+      adapter.streamChat(provider, request, new ChatStreamCallback() {
+        @Override
+        public void onDelta(String content) {
+          emitDelta(content);
+        }
+
+        @Override
+        public void onComplete(ChatResponse response) {
+          response.setPromptTokens(addTokens(
+              firstResponse.getPromptTokens(), response.getPromptTokens()));
+          response.setCompletionTokens(addTokens(
+              firstResponse.getCompletionTokens(), response.getCompletionTokens()));
+          response.setToolCalls(null);
+          complete(response);
+        }
+      });
+    }
+
+    private ChatRequest buildToolFollowUp(ChatRequest firstRequest, ChatResponse response,
+        List<McpToolResponse> tools) {
+      Map<String, List<McpToolResponse>> toolsByName = tools.stream()
+          .collect(java.util.stream.Collectors.groupingBy(
+              McpToolResponse::name, LinkedHashMap::new, java.util.stream.Collectors.toList()));
+      List<ChatMessage> messages = new ArrayList<>(firstRequest.getMessages());
+      messages.add(ChatMessage.assistant(response.getContent(), response.getToolCalls()));
+      for (ToolCall call : response.getToolCalls()) {
+        messages.add(ChatMessage.tool(call.getId(), executeTool(call, toolsByName)));
+      }
+
+      ChatRequest followUp = new ChatRequest();
+      followUp.setModel(firstRequest.getModel());
+      followUp.setMessages(messages);
+      followUp.setTemperature(firstRequest.getTemperature());
+      followUp.setMaxTokens(firstRequest.getMaxTokens());
+      followUp.setExtraParams(firstRequest.getExtraParams());
+      followUp.setTools(null);
+      return followUp;
+    }
+
+    private String executeTool(ToolCall call,
+        Map<String, List<McpToolResponse>> toolsByName) {
+      try {
+        List<McpToolResponse> matches = toolsByName.getOrDefault(call.getName(), List.of());
+        if (matches.size() != 1) {
+          return matches.isEmpty()
+              ? "工具调用失败：未找到已绑定工具 " + call.getName()
+              : "工具调用失败：工具名称不唯一，无法确定目标服务";
+        }
+        Map<String, Object> arguments = parseArguments(call.getArguments());
+        McpToolResponse tool = matches.getFirst();
+        return mcpClientService.callTool(tool.serverId(), tool.name(), arguments);
+      } catch (Exception e) {
+        log.warn("MCP tool call failed, sessionId={}, toolName={}, callId={}",
+            sessionId, call.getName(), call.getId(), e);
+        return "工具调用失败：该工具暂时不可用，请向用户说明并稍后重试";
+      }
+    }
+
+    private Map<String, Object> parseArguments(String arguments) throws IOException {
+      if (arguments == null || arguments.isBlank()) {
+        return Map.of();
+      }
+      return objectMapper.readValue(arguments, new TypeReference<Map<String, Object>>() { });
+    }
+
+    private void emitDelta(String content) {
+      if (cancelled.get()) {
+        throw new StreamCancelledException("emitter timed out");
+      }
+      accumulated.append(content);
+      try {
+        sendEvent("delta", new DeltaPayload(content));
+      } catch (IOException e) {
+        throw new ClientDisconnectedException(e);
+      } catch (IllegalStateException e) {
+        throw new StreamCancelledException("emitter already completed", e);
+      }
+    }
+
+    private Integer addTokens(Integer first, Integer second) {
+      if (first == null) {
+        return second;
+      }
+      if (second == null) {
+        return first;
+      }
+      return first + second;
     }
 
     private void completeWorkflow(String content) {

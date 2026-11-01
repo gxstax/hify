@@ -1,22 +1,29 @@
 package com.hify.agent.entity;
 
+import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import com.hify.common.entity.BaseEntity;
+import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * M:N binding between an agent and an MCP server (agent_tool table).
- * Logical delete: unbinding sets deleted = 1.
- */
+/** M:N binding between an Agent and an MCP tool. */
 @Getter
 @Setter
 @TableName("agent_tool")
-public class AgentTool extends BaseEntity {
+public class AgentTool {
+
+  @TableId(type = IdType.AUTO)
+  private Long id;
 
   /** agent.id (app-layer FK). */
   private Long agentId;
 
-  /** mcp_server.id (app-layer FK; column named tool_id). */
+  /** mcp_tool.id (app-layer FK). */
   private Long toolId;
+
+  @TableField(fill = FieldFill.INSERT)
+  private LocalDateTime createdAt;
 }

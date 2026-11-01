@@ -46,6 +46,7 @@ public class AgentCreateReq {
   @Min(value = 1, message = "maxContextTurns 必须大于 0")
   private Integer maxContextTurns;
 
-  /** Bound MCP server ids (mcp_server.id); duplicates are collapsed. */
+  /** Bound MCP tool ids (mcp_tool.id); duplicates are collapsed. */
+  @Size(max = 10, message = "一个 Agent 最多绑定 10 个工具")
   private List<Long> toolIds;
 }

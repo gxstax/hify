@@ -26,6 +26,12 @@
       <artifactId>hify-agent</artifactId>
       <version>${project.version}</version>
     </dependency>
+    <!-- Invoke MCP tools during chat turns -->
+    <dependency>
+      <groupId>com.hify</groupId>
+      <artifactId>hify-mcp</artifactId>
+      <version>${project.version}</version>
+    </dependency>
     <!-- Invoke models / LLM services -->
     <dependency>
       <groupId>com.hify</groupId>
@@ -64,6 +70,11 @@
       <groupId>org.projectlombok</groupId>
       <artifactId>lombok</artifactId>
       <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 </project>

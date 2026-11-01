@@ -29,7 +29,7 @@ public class AgentDetailResponse {
   private Integer maxContextTurns;
   private Boolean enabled;
 
-  /** Bound MCP server ids (mcp_server.id). */
+  /** Bound MCP tool ids (mcp_tool.id). */
   private List<Long> toolIds;
 
   private LocalDateTime createdAt;

@@ -108,43 +108,58 @@ CREATE TABLE IF NOT EXISTS agent (
   COLLATE = utf8mb4_unicode_ci
   COMMENT = 'Agent configurations';
 
--- ---------------------------------------------------------------------------
--- mcp_server: an MCP server exposing tools callable by agents
--- ---------------------------------------------------------------------------
+
+-- ─────────────────────────────────────────────
+-- MCP Server（工具服务）
+-- ─────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS mcp_server (
-  id          BIGINT        NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
-  name        VARCHAR(128)  NOT NULL COMMENT 'Server name',
-  description VARCHAR(255)  NULL COMMENT 'Short description',
-  transport   VARCHAR(16)   NOT NULL COMMENT 'Transport type: stdio | sse',
-  command     VARCHAR(255)  NULL COMMENT 'For stdio: command to launch',
-  args        JSON          NULL COMMENT 'For stdio: launch arguments as a JSON array',
-  url         VARCHAR(512)  NULL COMMENT 'For sse: MCP endpoint URL',
-  created_at  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
-  updated_at  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
-  deleted     TINYINT       NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
+    id           BIGINT          NOT NULL AUTO_INCREMENT COMMENT '主键',
+    name         VARCHAR(100)    NOT NULL                COMMENT 'MCP Server 名称',
+    endpoint     VARCHAR(500)    NOT NULL                COMMENT '服务端点地址',
+    description  VARCHAR(500)    DEFAULT ''              COMMENT '描述',
+    enabled      TINYINT(1)      NOT NULL DEFAULT 1      COMMENT '是否启用',
+    deleted      TINYINT(1)      NOT NULL DEFAULT 0      COMMENT '逻辑删除',
+    created_at   DATETIME        NOT NULL                COMMENT '创建时间',
+    updated_at   DATETIME        NOT NULL                COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY idx_mcp_server_name (name)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='MCP 工具服务';
+
+-- ---------------------------------------------------------------------------
+-- mcp_tool: tools discovered from an MCP server
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS mcp_tool (
+  id           BIGINT       NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
+  server_id    BIGINT       NOT NULL COMMENT 'mcp_server.id (app-layer FK)',
+  name         VARCHAR(255) NOT NULL COMMENT 'Remote tool name',
+  description  TEXT         NULL COMMENT 'Remote tool description',
+  input_schema JSON         NOT NULL COMMENT 'Tool input JSON Schema',
+  created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
+  updated_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
+  deleted      TINYINT      NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
   PRIMARY KEY (id),
-  UNIQUE KEY uk_mcp_server_name (name)
+  UNIQUE KEY uk_mcp_tool_server_name (server_id, name),
+  KEY idx_mcp_tool_server_id (server_id)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci
-  COMMENT = 'MCP servers';
+  COMMENT = 'Tools discovered from MCP servers';
+
 
 -- ---------------------------------------------------------------------------
--- agent_tool: M:N binding between agents and MCP servers
+-- agent_tool: M:N binding between agents and MCP tools
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS agent_tool (
   id            BIGINT    NOT NULL AUTO_INCREMENT COMMENT 'Primary key',
   agent_id      BIGINT    NOT NULL COMMENT 'agent.id (app-layer FK)',
-  tool_id       BIGINT    NOT NULL COMMENT '关联 mcp_server.id',
+  tool_id       BIGINT    NOT NULL COMMENT 'mcp_tool.id (app-layer FK)',
   created_at    DATETIME  NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Creation time',
-  updated_at    DATETIME  NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Last update time',
-  deleted       TINYINT   NOT NULL DEFAULT 0 COMMENT 'Logical delete: 0 = normal, 1 = deleted',
   PRIMARY KEY (id),
   UNIQUE KEY uk_agent_tool (agent_id, tool_id)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci
-  COMMENT = 'Agent to MCP server bindings';
+  COMMENT = 'Agent to MCP tool bindings';
 
 -- ---------------------------------------------------------------------------
 -- chat_session: one conversation with an agent
