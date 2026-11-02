@@ -3,6 +3,8 @@ package com.hify.mcp.controller;
 import com.hify.common.dto.PageResult;
 import com.hify.common.dto.Result;
 import com.hify.mcp.dto.McpConnectionTestResponse;
+import com.hify.mcp.dto.McpDebugReq;
+import com.hify.mcp.dto.McpDebugResponse;
 import com.hify.mcp.dto.McpServerCreateReq;
 import com.hify.mcp.dto.McpServerDetailResponse;
 import com.hify.mcp.dto.McpServerListResponse;
@@ -62,5 +64,11 @@ public class McpServerController {
   @PostMapping("/{id}/test")
   public Result<McpConnectionTestResponse> test(@PathVariable Long id) {
     return Result.ok(serverService.testConnection(id));
+  }
+
+  @PostMapping("/{id}/debug")
+  public Result<McpDebugResponse> debug(@PathVariable Long id,
+      @Valid @RequestBody McpDebugReq req) {
+    return Result.ok(serverService.debug(id, req));
   }
 }

@@ -45,6 +45,18 @@ const router = createRouter({
       meta: { title: '文档管理' },
     },
     {
+      path: '/mcp-servers',
+      name: 'mcp-servers',
+      component: () => import('@/views/mcp/McpServerList.vue'),
+      meta: { title: 'MCP 工具' },
+    },
+    {
+      path: '/mcp-servers/:id',
+      name: 'mcp-server-detail',
+      component: () => import('@/views/mcp/McpServerDetail.vue'),
+      meta: { title: 'MCP Server 详情' },
+    },
+    {
       path: '/chat',
       name: 'chat',
       component: () => import('@/views/chat/ChatView.vue'),

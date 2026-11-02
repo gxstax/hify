@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { ChatDotRound, Collection, Connection, Expand, Fold, Setting, User } from '@element-plus/icons-vue'
+import { ChatDotRound, Collection, Connection, Expand, Fold, Link, Setting, User } from '@element-plus/icons-vue'
 import { useMediaQuery } from '@/composables/useMediaQuery'
 
 const route = useRoute()
@@ -15,6 +15,9 @@ const asideCollapsed = computed(() => collapsed.value || isNarrow.value)
 const activeMenu = computed(() => {
   if (route.path.startsWith('/knowledge-bases')) {
     return '/knowledge-bases'
+  }
+  if (route.path.startsWith('/mcp-servers')) {
+    return '/mcp-servers'
   }
   if (route.path.startsWith('/workflows')) {
     return '/workflows'
@@ -64,6 +67,10 @@ const crumbs = computed(() =>
         <el-menu-item index="/knowledge-bases">
           <el-icon><Collection /></el-icon>
           <template #title>知识库管理</template>
+        </el-menu-item>
+        <el-menu-item index="/mcp-servers">
+          <el-icon><Link /></el-icon>
+          <template #title>MCP 工具</template>
         </el-menu-item>
         <el-menu-item index="/chat">
           <el-icon><ChatDotRound /></el-icon>

@@ -8,6 +8,8 @@ import com.hify.common.exception.ErrorCode;
 import com.hify.common.util.PageHelper;
 import com.hify.mcp.config.McpEndpoint;
 import com.hify.mcp.dto.McpConnectionTestResponse;
+import com.hify.mcp.dto.McpDebugReq;
+import com.hify.mcp.dto.McpDebugResponse;
 import com.hify.mcp.dto.McpServerCreateReq;
 import com.hify.mcp.dto.McpServerDetailResponse;
 import com.hify.mcp.dto.McpServerListResponse;
@@ -18,6 +20,7 @@ import com.hify.mcp.entity.McpServer;
 import com.hify.mcp.entity.McpTool;
 import com.hify.mcp.mapper.McpServerMapper;
 import com.hify.mcp.mapper.McpToolMapper;
+import com.hify.mcp.service.McpClientService;
 import com.hify.mcp.service.McpRemoteClient;
 import com.hify.mcp.service.McpServerService;
 import com.hify.mcp.service.McpToolReferenceChecker;
@@ -38,6 +41,7 @@ public class McpServerServiceImpl implements McpServerService {
   private final McpServerMapper serverMapper;
   private final McpToolMapper toolMapper;
   private final McpRemoteClient remoteClient;
+  private final McpClientService clientService;
   private final McpToolSyncService toolSyncService;
   private final List<McpToolReferenceChecker> referenceCheckers;
 
@@ -128,6 +132,22 @@ public class McpServerServiceImpl implements McpServerService {
     } catch (Exception e) {
       return McpConnectionTestResponse.failure(elapsedMs(started), safeMessage(e));
     }
+  }
+
+  @Override
+  public McpDebugResponse debug(Long id, McpDebugReq req) {
+    requireServer(id);
+    McpTool tool = toolMapper.selectOne(Wrappers.<McpTool>lambdaQuery()
+        .eq(McpTool::getServerId, id)
+        .eq(McpTool::getName, req.getToolName()));
+    if (tool == null) {
+      throw new BizException(ErrorCode.MCP_TOOL_NOT_FOUND);
+    }
+    Map<String, Object> arguments = req.getArguments() == null
+        ? Map.of() : req.getArguments();
+    long started = System.nanoTime();
+    String result = clientService.callTool(id, req.getToolName(), arguments);
+    return new McpDebugResponse(result, elapsedMs(started));
   }
 
   private McpServerDetailResponse detail(McpServer server) {

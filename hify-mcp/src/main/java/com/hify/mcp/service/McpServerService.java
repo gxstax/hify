@@ -2,6 +2,8 @@ package com.hify.mcp.service;
 
 import com.hify.common.dto.PageResult;
 import com.hify.mcp.dto.McpConnectionTestResponse;
+import com.hify.mcp.dto.McpDebugReq;
+import com.hify.mcp.dto.McpDebugResponse;
 import com.hify.mcp.dto.McpServerCreateReq;
 import com.hify.mcp.dto.McpServerDetailResponse;
 import com.hify.mcp.dto.McpServerListResponse;
@@ -20,4 +22,6 @@ public interface McpServerService {
   void delete(Long id);
 
   McpConnectionTestResponse testConnection(Long id);
+
+  McpDebugResponse debug(Long id, McpDebugReq req);
 }
